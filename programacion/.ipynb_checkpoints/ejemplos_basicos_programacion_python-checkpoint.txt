@@ -1,0 +1,343 @@
+EJEMPLOS BÁSICOS DE PROGRAMACIÓN EN PYTHON
+
+1. HOLA MUNDO
+----------------
+print("Hola, mundo!")
+
+
+2. VARIABLES
+----------------
+nombre = "Ana"
+edad = 20
+altura = 1.65
+estudiante = True
+
+print(nombre)
+print(edad)
+print(altura)
+
+
+3. ENTRADA DE DATOS
+----------------
+nombre = input("¿Cómo te llamas? ")
+print("Hola", nombre)
+
+edad = int(input("¿Qué edad tienes? "))
+print("El año que viene tendrás", edad + 1)
+
+
+4. OPERACIONES MATEMÁTICAS
+----------------
+a = 10
+b = 3
+
+print(a + b)
+print(a - b)
+print(a * b)
+print(a / b)
+print(a // b)
+print(a % b)
+print(a ** b)
+
+
+5. CÁLCULO DEL ÁREA DE UN TRIÁNGULO
+----------------
+base = 5
+altura = 3
+
+area = base * altura / 2
+
+print("Área:", area)
+
+
+6. CONDICIONALES
+----------------
+edad = int(input("Introduce tu edad: "))
+
+if edad >= 18:
+    print("Eres mayor de edad")
+else:
+    print("Eres menor de edad")
+
+
+7. CLASIFICAR UNA NOTA
+----------------
+nota = float(input("Introduce la nota: "))
+
+if nota >= 9:
+    print("Sobresaliente")
+elif nota >= 7:
+    print("Notable")
+elif nota >= 5:
+    print("Aprobado")
+else:
+    print("Suspenso")
+
+
+8. OPERADORES DE COMPARACIÓN
+----------------
+edad = 20
+
+print(edad == 20)
+print(edad != 20)
+print(edad > 18)
+print(edad < 18)
+print(edad >= 18)
+print(edad <= 18)
+
+
+9. CONDICIONES MÚLTIPLES
+----------------
+edad = 25
+tiene_carnet = True
+
+if edad >= 18 and tiene_carnet:
+    print("Puede conducir")
+
+
+10. BUCLE FOR
+----------------
+for i in range(5):
+    print(i)
+
+
+11. RECORRER UN TEXTO
+----------------
+for letra in "Python":
+    print(letra)
+
+
+12. BUCLE WHILE
+----------------
+contador = 1
+
+while contador <= 5:
+    print(contador)
+    contador += 1
+
+
+13. VALIDAR UN NÚMERO
+----------------
+numero = int(input("Introduce un número positivo: "))
+
+while numero <= 0:
+    print("El número debe ser positivo")
+    numero = int(input("Introduce otro número: "))
+
+print("Número correcto:", numero)
+
+
+14. LISTAS
+----------------
+frutas = ["manzana", "pera", "naranja"]
+
+print(frutas)
+print(frutas[0])
+print(frutas[1])
+
+for fruta in frutas:
+    print(fruta)
+
+frutas.append("plátano")
+print(frutas)
+
+frutas.remove("pera")
+
+
+15. LISTAS DE NÚMEROS
+----------------
+notas = [7, 8, 5, 9, 6]
+
+print("Número de notas:", len(notas))
+print("Nota máxima:", max(notas))
+print("Nota mínima:", min(notas))
+print("Suma:", sum(notas))
+
+media = sum(notas) / len(notas)
+print("Media:", media)
+
+
+16. DICCIONARIOS
+----------------
+alumno = {
+    "nombre": "Ana",
+    "edad": 20,
+    "nota": 8.5
+}
+
+print(alumno["nombre"])
+print(alumno["nota"])
+
+alumno["nota"] = 9
+alumno["curso"] = "2º ESO"
+
+
+17. FUNCIONES
+----------------
+def saludar():
+    print("Hola!")
+
+saludar()
+
+
+18. FUNCIONES CON PARÁMETROS
+----------------
+def saludar(nombre):
+    print("Hola", nombre)
+
+saludar("Ana")
+saludar("Luis")
+
+
+19. FUNCIONES CON RETORNO
+----------------
+def sumar(a, b):
+    return a + b
+
+resultado = sumar(5, 3)
+print(resultado)
+
+
+20. CALCULAR UNA MEDIA CON UNA FUNCIÓN
+----------------
+def calcular_media(notas):
+    return sum(notas) / len(notas)
+
+notas = [7, 8, 9, 6]
+
+media = calcular_media(notas)
+
+print("Media:", media)
+
+
+21. CADENAS DE TEXTO
+----------------
+nombre = "Ana"
+
+print(nombre.upper())
+print(nombre.lower())
+print(len(nombre))
+
+
+22. FORMATEAR TEXTO
+----------------
+nombre = "Ana"
+edad = 20
+
+print(f"{nombre} tiene {edad} años")
+
+
+23. COMPROBAR SI UN NÚMERO ES PAR
+----------------
+numero = int(input("Introduce un número: "))
+
+if numero % 2 == 0:
+    print("El número es par")
+else:
+    print("El número es impar")
+
+
+24. CALCULAR UN FACTORIAL
+----------------
+numero = int(input("Introduce un número: "))
+
+factorial = 1
+
+for i in range(1, numero + 1):
+    factorial *= i
+
+print("Factorial:", factorial)
+
+
+25. CONTAR NÚMEROS POSITIVOS
+----------------
+numeros = [4, -2, 7, 0, -5, 8, 3]
+
+contador = 0
+
+for numero in numeros:
+    if numero > 0:
+        contador += 1
+
+print("Números positivos:", contador)
+
+
+26. PROGRAMA DE CLASIFICACIÓN DE COMPRAS
+----------------
+clientes = ["Ana", "Luis", "Marta", "Pedro"]
+compras = [120, 350, 80, 420]
+
+for i in range(len(clientes)):
+
+    if compras[i] >= 300:
+        categoria = "Alta"
+    elif compras[i] >= 100:
+        categoria = "Media"
+    else:
+        categoria = "Baja"
+
+    print(clientes[i], compras[i], categoria)
+
+
+27. MANEJO BÁSICO DE ERRORES
+----------------
+try:
+    numero = int(input("Introduce un número: "))
+    print("Has introducido:", numero)
+
+except ValueError:
+    print("Debes introducir un número válido")
+
+
+28. PEQUEÑO PROYECTO: CALCULADORA
+----------------
+def calculadora():
+
+    a = float(input("Primer número: "))
+    operador = input("Operador (+, -, *, /): ")
+    b = float(input("Segundo número: "))
+
+    if operador == "+":
+        resultado = a + b
+
+    elif operador == "-":
+        resultado = a - b
+
+    elif operador == "*":
+        resultado = a * b
+
+    elif operador == "/":
+        if b != 0:
+            resultado = a / b
+        else:
+            print("No se puede dividir entre cero")
+            return
+
+    else:
+        print("Operador no válido")
+        return
+
+    print("Resultado:", resultado)
+
+
+calculadora()
+
+
+PROGRESIÓN RECOMENDADA PARA APRENDER PYTHON
+--------------------------------------------
+
+1. print()
+2. Variables y tipos de datos
+3. input()
+4. Operadores
+5. if / elif / else
+6. for
+7. while
+8. Listas
+9. Diccionarios
+10. Funciones
+11. Errores y excepciones
+12. Ficheros
+13. Módulos
+14. Programación orientada a objetos
+15. NumPy / Pandas / Matplotlib
