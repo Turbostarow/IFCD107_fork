@@ -1,3 +1,10 @@
+def display_func(level,text):   
+    if level <= display_level:
+        print(text)
+def display_func_val(level,text,val):  
+    if level <= display_level:
+        print(text,val)
+
 EJEMPLOS DE PYTHON: DICCIONARIOS, ARRAYS, MATRICES Y ARRAYS MULTIDIMENSIONALES
 ================================================================================
 
