@@ -1,9 +1,16 @@
+display_level=1
 def display_func(level,text):   
     if level <= display_level:
         print(text)
 def display_func_val(level,text,val):  
     if level <= display_level:
         print(text,val)
+def suma (a,b):
+    return a+ b
+
+
+suma
+display_func(0,suma(1,4))
 
 EJEMPLOS DE PYTHON: DICCIONARIOS, ARRAYS, MATRICES Y ARRAYS MULTIDIMENSIONALES
 ================================================================================
