@@ -217,6 +217,15 @@ print(aprobados)
 
 5. MATRICES CON LISTAS
 ----------------------
+class GestionMatrices:
+    """
+    """
+
+    def __init__(self, matriza,matrizb):
+        self.matriza = matriza
+        self.matrizb = matrizb
+    def getmatriz(self,n):
+
 
 Una matriz puede representarse mediante una lista de listas.
 
