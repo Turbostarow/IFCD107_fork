@@ -95,8 +95,25 @@ class GestionArrays:
 
     def __init__(self, array):
         self.array = array
+    def getarray(self):
+        return self.array
     def elemento_posicion(self,n):
-        return self.array[n]
+        longitud = len(self.array)
+        if n < longitud -1:
+            return self.array[n]
+        else:
+            return "-1"
+    def modificar(self,pos,val):
+        self.array[pos]=val
+    def addfinal(self,val):
+        self.array.append(val)
+    def addpos(self,pos,val):
+        self.array.insert(pos,val)
+    def sumaelementos(self):
+        suma = 0
+        for i in range(len(self.array)):
+            suma += self.array[i]
+        return suma
 
 Invoco a la clase
 gestarr = GestionArrays([2,3,5,7,9,11])
