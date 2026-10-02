@@ -86,8 +86,22 @@ print(alumnos["A001"]["nombre"])
 print(alumnos["A003"]["nota"])
 
 
-2. ARRAYS MEDIANTE LISTAS
+2. ARRAYS MEDIANTE LISTAS usando una clase
 ------------------------
+
+class GestionArrays:
+    """
+    """
+
+    def __init__(self, array):
+        self.array = array
+    def elemento_posicion(self,n):
+        return self.array[n]
+
+Invoco a la clase
+gestarr = GestionArrays([2,3,5,7,9,11])
+print(gestarr.elemento_posicion(1))
+
 
 En Python, para muchos ejemplos básicos utilizamos list.
 
