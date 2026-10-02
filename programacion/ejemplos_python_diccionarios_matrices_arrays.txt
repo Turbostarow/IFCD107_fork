@@ -226,6 +226,25 @@ class GestionMatrices:
         self.matrizb = matrizb
     def getmatriz(self,n):
 
+para los test
+matriza = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+matrizb = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+]
+
+matrizc = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+]
+
 
 Una matriz puede representarse mediante una lista de listas.
 
