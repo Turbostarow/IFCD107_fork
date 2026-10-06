@@ -1,0 +1,14 @@
+class Calculadora:
+    """
+    Clase para ejecutar automáticamente todos los modelos de sklearn.ensemble
+    dentro de un pipeline con escalado, selección de características y
+    optimización de hiperparámetros con RandomizedSearchCV.
+    """
+
+    def __init__(self, A,B):
+        self.A = A
+        self.B = B
+    def suma(self):
+        return self.A + self.B
+    def resta(self):
+        return self.A - self.B

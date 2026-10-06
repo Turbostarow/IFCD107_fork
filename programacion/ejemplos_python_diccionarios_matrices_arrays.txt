@@ -1,9 +1,16 @@
+display_level=1
 def display_func(level,text):   
     if level <= display_level:
         print(text)
 def display_func_val(level,text,val):  
     if level <= display_level:
         print(text,val)
+def suma (a,b):
+    return a+ b
+
+
+suma
+display_func(0,suma(1,4))
 
 EJEMPLOS DE PYTHON: DICCIONARIOS, ARRAYS, MATRICES Y ARRAYS MULTIDIMENSIONALES
 ================================================================================
@@ -79,8 +86,39 @@ print(alumnos["A001"]["nombre"])
 print(alumnos["A003"]["nota"])
 
 
-2. ARRAYS MEDIANTE LISTAS
+2. ARRAYS MEDIANTE LISTAS usando una clase
 ------------------------
+
+class GestionArrays:
+    """
+    """
+
+    def __init__(self, array):
+        self.array = array
+    def getarray(self):
+        return self.array
+    def elemento_posicion(self,n):
+        longitud = len(self.array)
+        if n < longitud -1:
+            return self.array[n]
+        else:
+            return "-1"
+    def modificar(self,pos,val):
+        self.array[pos]=val
+    def addfinal(self,val):
+        self.array.append(val)
+    def addpos(self,pos,val):
+        self.array.insert(pos,val)
+    def sumaelementos(self):
+        suma = 0
+        for i in range(len(self.array)):
+            suma += self.array[i]
+        return suma
+
+Invoco a la clase
+gestarr = GestionArrays([2,3,5,7,9,11])
+print(gestarr.elemento_posicion(1))
+
 
 En Python, para muchos ejemplos básicos utilizamos list.
 
@@ -179,6 +217,34 @@ print(aprobados)
 
 5. MATRICES CON LISTAS
 ----------------------
+class GestionMatrices:
+    """
+    """
+
+    def __init__(self, matriza,matrizb):
+        self.matriza = matriza
+        self.matrizb = matrizb
+    def getmatriz(self,n):
+
+para los test
+matriza = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+matrizb = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+]
+
+matrizc = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+]
+
 
 Una matriz puede representarse mediante una lista de listas.
 
