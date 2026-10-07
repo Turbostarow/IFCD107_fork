@@ -1,0 +1,247 @@
+﻿algorithm,Feature Origin,category,r2,rmse,mae,pearson,bias,soc_range,category_n,Score
+AdaBoostRegressor,AlphaEarth,Oats,0.92,41.52,22.95,0.96,0.34,30.5,4,0.9395733786728423
+AdaBoostRegressor,AlphaEarth,Oats,0.92,41.52,22.95,0.96,0.34,30.5,4,0.9395733786728423
+GradientBoostingRegressor,AlphaEarth,Oats,0.75,54.58,20.55,0.87,-9.18,30.5,4,0.6121960546550149
+VotingRegressor,AlphaEarth,Oats,0.73,53.4,22.17,0.85,-6.64,30.5,4,0.6092098578747291
+RandomForestRegressor,AlphaEarth,Oats,0.66,54.67,21.42,0.81,-7.91,30.5,4,0.5482828938707904
+ExtraTreesRegressor,AlphaEarth,Oats,0.64,54.67,21.49,0.8,-8.22,30.5,4,0.5294080512136801
+VotingRegressor,AlphaEarth,Other bare soil,0.61,9.43,7.23,0.78,3.92,33.6,15,0.8703022070803227
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.6,9.24,6.82,0.78,2.7,33.6,15,0.9147796074239842
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.6,9.24,6.82,0.78,2.7,33.6,15,0.9147796074239842
+ExtraTreesRegressor,AlphaEarth,Oats,0.59,55.97,21.97,0.77,-8.59,30.5,4,0.4652887702772346
+ExtraTreesRegressor,AlphaEarth,Oats,0.59,55.97,21.97,0.77,-8.59,30.5,4,0.4652887702772346
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.58,9.05,6.56,0.76,2.35,33.6,15,0.9125320135283808
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.58,9.05,6.56,0.76,2.35,33.6,15,0.9125320135283808
+RandomForestRegressor,AlphaEarth,Other bare soil,0.57,9.25,6.51,0.75,2.22,33.6,15,0.8980803442157137
+RandomForestRegressor,AlphaEarth,Other bare soil,0.57,9.25,6.51,0.75,2.22,33.6,15,0.8980803442157137
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.55,9.54,6.97,0.74,3.0,33.6,15,0.834438680541431
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.55,9.91,7.22,0.74,3.24,33.6,15,0.8077671041626857
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.55,9.91,7.22,0.74,3.24,33.6,15,0.8077671041626857
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.55,9.35,6.41,0.74,1.64,33.6,15,0.8935685770944131
+RandomForestRegressor,AlphaEarth,Oats,0.52,56.38,21.91,0.72,-8.31,30.5,4,0.4165584303801927
+RandomForestRegressor,AlphaEarth,Oats,0.52,56.38,21.91,0.72,-8.31,30.5,4,0.4165584303801927
+GradientBoostingRegressor,AlphaEarth,Oats,0.51,55.85,21.59,0.72,-8.79,30.5,4,0.4185473303025784
+GradientBoostingRegressor,AlphaEarth,Oats,0.51,55.85,21.59,0.72,-8.79,30.5,4,0.4185473303025784
+BaggingRegressor,AlphaEarth,Other bare soil,0.5,13.43,8.46,0.71,5.01,33.6,15,0.5580823476872109
+BaggingRegressor,Sentinel + AlphaEarth,Other bare soil,0.5,13.43,8.46,0.71,5.01,33.6,15,0.5580823476872109
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.5,9.92,6.68,0.71,2.07,33.6,15,0.8045817202596801
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.5,9.92,6.68,0.71,2.07,33.6,15,0.8045817202596801
+RandomForestRegressor,Sentinel + AlphaEarth,Other bare soil,0.49,10.21,6.79,0.7,2.39,33.6,15,0.770662255046568
+RandomForestRegressor,AlphaEarth,Other bare soil,0.49,10.21,6.79,0.7,2.39,33.6,15,0.770662255046568
+RandomForestRegressor,AlphaEarth,Other bare soil,0.46,10.49,7.33,0.68,3.02,33.6,15,0.6947570931113077
+VotingRegressor,AlphaEarth,Other bare soil,0.46,11.89,9.22,0.68,6.3,33.6,15,0.5023403534190101
+VotingRegressor,Sentinel + AlphaEarth,Other bare soil,0.46,11.89,9.22,0.68,6.3,33.6,15,0.5023403534190101
+AdaBoostRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.45,67.58,37.67,0.67,-7.54,173.6,21,0.7880195599022006
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.45,67.58,37.67,0.67,-7.54,173.6,21,0.7880195599022006
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other bare soil,0.45,10.63,6.8,0.67,2.36,33.6,15,0.7127300621169701
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.45,10.63,6.8,0.67,2.36,33.6,15,0.7127300621169701
+ExtraTreesRegressor,AlphaEarth,Other mixed woodland,0.44,67.09,40.01,0.67,3.24,173.6,21,0.8485598366561031
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.44,67.09,40.01,0.67,3.24,173.6,21,0.8485598366561031
+HistGradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.44,70.11,39.06,0.66,-7.48,173.6,21,0.6719842737191206
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.44,70.11,39.06,0.66,-7.48,173.6,21,0.6719842737191206
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.43,34.37,12.32,0.66,1.64,264.7,25,0.9765436901276289
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.43,34.37,12.32,0.66,1.64,264.7,25,0.9765436901276289
+RandomForestRegressor,Sentinel + AlphaEarth,Other bare soil,0.43,10.94,7.43,0.65,3.1,33.6,15,0.6356196871609431
+RandomForestRegressor,AlphaEarth,Other bare soil,0.43,10.94,7.43,0.65,3.1,33.6,15,0.6356196871609431
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.42,11.07,7.9,0.65,3.77,33.6,15,0.5923485027807068
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.42,11.07,7.9,0.65,3.77,33.6,15,0.5923485027807068
+VotingRegressor,AlphaEarth,Other mixed woodland,0.42,68.8,41.77,0.65,4.54,173.6,21,0.6847088198528727
+VotingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.42,68.8,41.77,0.65,4.54,173.6,21,0.6847088198528727
+RandomForestRegressor,AlphaEarth,Other mixed woodland,0.41,69.21,41.38,0.64,4.71,173.6,21,0.656330061093236
+RandomForestRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.41,69.21,41.38,0.64,4.71,173.6,21,0.656330061093236
+RandomForestRegressor,AlphaEarth,Other mixed woodland,0.41,69.2,42.16,0.64,4.29,173.6,21,0.6493553800529108
+RandomForestRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.41,69.2,42.16,0.64,4.29,173.6,21,0.6493553800529108
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.4,69.36,41.01,0.64,2.51,173.6,21,0.7092853351994604
+GradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.4,69.36,41.01,0.64,2.51,173.6,21,0.7092853351994604
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.4,11.0,6.99,0.63,1.97,33.6,15,0.6450024516878992
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other bare soil,0.4,11.0,6.99,0.63,1.97,33.6,15,0.6450024516878992
+AdaBoostRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.4,69.71,42.68,0.63,2.7,173.6,21,0.643840996771912
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.4,69.71,42.68,0.63,2.7,173.6,21,0.643840996771912
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.39,34.82,12.17,0.63,1.66,264.7,25,0.8785687672515531
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other bare soil,0.39,11.17,7.38,0.62,3.04,33.6,15,0.586613584327277
+ExtraTreesRegressor,AlphaEarth,Other bare soil,0.39,11.17,7.38,0.62,3.04,33.6,15,0.586613584327277
+RandomForestRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.38,70.88,43.1,0.62,5.65,173.6,21,0.4934347616398288
+RandomForestRegressor,AlphaEarth,Other mixed woodland,0.38,70.88,43.1,0.62,5.65,173.6,21,0.4934347616398288
+AdaBoostRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.38,38.06,20.3,0.61,12.06,264.7,25,0.42592528023682447
+GradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.37,71.21,41.4,0.61,1.54,173.6,21,0.6115504470582607
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.37,71.21,41.4,0.61,1.54,173.6,21,0.6115504470582607
+BaggingRegressor,AlphaEarth,Other mixed woodland,0.37,71.43,44.24,0.61,3.38,173.6,21,0.4903980540872418
+BaggingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.37,71.43,44.24,0.61,3.38,173.6,21,0.4903980540872418
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.37,37.17,12.29,0.61,0.61,264.7,25,0.7715830826216517
+ExtraTreesRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.37,37.17,12.29,0.61,0.61,264.7,25,0.7715830826216517
+ExtraTreesRegressor,AlphaEarth,Other mixed woodland,0.37,71.58,42.31,0.61,4.47,173.6,21,0.5032449624499438
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.37,71.58,42.31,0.61,4.47,173.6,21,0.5032449624499438
+AdaBoostRegressor,AlphaEarth,Oats,0.37,59.38,28.85,0.6,0.18,30.5,4,0.23511971331847828
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.36,71.94,41.52,0.6,1.82,173.6,21,0.5604119463964616
+HistGradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.36,71.94,41.52,0.6,1.82,173.6,21,0.5604119463964616
+HistGradientBoostingRegressor,AlphaEarth,Shrubland without tree cover,0.36,32.12,21.59,0.6,-7.39,189.5,7,0.8129277566539924
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.36,32.12,21.59,0.6,-7.39,189.5,7,0.8129277566539924
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.36,35.85,12.91,0.6,2.3,264.7,25,0.7482005654299878
+GradientBoostingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.36,37.67,12.74,0.6,0.68,264.7,25,0.7216839208597261
+GradientBoostingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.36,37.67,12.74,0.6,0.68,264.7,25,0.7216839208597261
+BaggingRegressor,Sentinel + AlphaEarth,Other bare soil,0.36,13.51,8.16,0.6,4.07,33.6,15,0.42756835013488576
+BaggingRegressor,AlphaEarth,Other bare soil,0.36,13.51,8.16,0.6,4.07,33.6,15,0.42756835013488576
+RandomForestRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.35,37.48,12.62,0.59,0.65,264.7,25,0.7050750401556182
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.35,37.48,12.62,0.59,0.65,264.7,25,0.7050750401556182
+ExtraTreesRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.35,45.36,19.0,0.59,-3.81,479.5,53,0.8805860692953036
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.35,45.36,19.0,0.59,-3.81,479.5,53,0.8805860692953036
+HistGradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.35,45.68,19.55,0.59,-4.09,479.5,53,0.8535250327876275
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.35,45.68,19.55,0.59,-4.09,479.5,53,0.8535250327876275
+GradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.35,73.74,44.12,0.59,6.54,173.6,21,0.3067621171329713
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.35,73.74,44.12,0.59,6.54,173.6,21,0.3067621171329713
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.35,72.49,43.29,0.59,-0.01,173.6,21,0.530316453959854
+AdaBoostRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.35,72.49,43.29,0.59,-0.01,173.6,21,0.530316453959854
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.34,33.18,22.49,0.59,-7.02,189.5,7,0.5786030387432443
+BaggingRegressor,AlphaEarth,Other mixed woodland,0.34,73.67,44.34,0.59,4.85,173.6,21,0.3376518432531939
+BaggingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.34,73.67,44.34,0.59,4.85,173.6,21,0.3376518432531939
+GradientBoostingRegressor,AlphaEarth,Oats,0.34,60.75,21.67,0.58,-12.51,360.5,33,0.17301204819277108
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.34,43.81,19.08,0.58,-2.68,479.5,53,0.8863178601367308
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.34,43.81,19.08,0.58,-2.68,479.5,53,0.8863178601367308
+HistGradientBoostingRegressor,AlphaEarth,Other mixed woodland,0.34,74.54,40.43,0.58,-2.8,173.6,21,0.4504376835718419
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.34,74.54,40.43,0.58,-2.8,173.6,21,0.4504376835718419
+ExtraTreesRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.34,37.96,12.65,0.58,0.73,264.7,25,0.6637547601338653
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.34,37.96,12.65,0.58,0.73,264.7,25,0.6637547601338653
+ExtraTreesRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.34,73.44,44.05,0.58,4.0,173.6,21,0.36018324290649534
+ExtraTreesRegressor,AlphaEarth,Other mixed woodland,0.34,73.44,44.05,0.58,4.0,173.6,21,0.36018324290649534
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.34,36.19,12.75,0.58,1.67,264.7,25,0.7005546269508365
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.34,36.19,12.75,0.58,1.67,264.7,25,0.7005546269508365
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.34,33.1,22.25,0.58,-7.2,189.5,7,0.5822510943900607
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.34,33.1,22.25,0.58,-7.2,189.5,7,0.5822510943900607
+GradientBoostingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.34,44.93,19.36,0.58,-3.71,479.5,53,0.8356873127049301
+GradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.34,44.93,19.36,0.58,-3.71,479.5,53,0.8356873127049301
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.33,11.93,7.61,0.57,3.59,33.6,15,0.46979622250880315
+HistGradientBoostingRegressor,AlphaEarth,Other bare soil,0.33,11.93,7.61,0.57,3.59,33.6,15,0.46979622250880315
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.33,32.92,22.66,0.57,-4.95,189.5,7,0.6789253775410289
+RandomForestRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.61,19.44,0.57,-2.84,479.5,53,0.7915175346256402
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.61,19.44,0.57,-2.84,479.5,53,0.7915175346256402
+VotingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.05,20.23,0.57,0.56,479.5,53,0.8456792677224314
+VotingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.05,20.23,0.57,0.56,479.5,53,0.8456792677224314
+BaggingRegressor,Sentinel + AlphaEarth,Other mixed woodland,0.32,74.02,41.51,0.57,0.24,173.6,21,0.4721519802251451
+BaggingRegressor,AlphaEarth,Other mixed woodland,0.32,74.02,41.51,0.57,0.24,173.6,21,0.4721519802251451
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.32,12.31,8.26,0.57,4.56,33.6,15,0.4048293245950596
+HistGradientBoostingRegressor,AlphaEarth,Other bare soil,0.32,12.31,8.26,0.57,4.56,33.6,15,0.4048293245950596
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.32,44.69,19.48,0.56,-2.13,479.5,53,0.7991823551434394
+GradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.26,19.15,0.56,-3.29,479.5,53,0.7668374979879716
+GradientBoostingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.26,19.15,0.56,-3.29,479.5,53,0.7668374979879716
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.32,38.15,12.94,0.56,0.65,264.7,25,0.60346525543781
+HistGradientBoostingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.32,38.15,12.94,0.56,0.65,264.7,25,0.60346525543781
+GradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.71,18.87,0.56,-4.39,479.5,53,0.7361391575893362
+GradientBoostingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.32,45.71,18.87,0.56,-4.39,479.5,53,0.7361391575893362
+GradientBoostingRegressor,Sentinel + AlphaEarth,Shrubland with sparse tree cover,0.32,41.75,21.02,0.56,-4.25,81.1,18,0.8443568069527949
+GradientBoostingRegressor,AlphaEarth,Shrubland with sparse tree cover,0.32,41.75,21.02,0.56,-4.25,81.1,18,0.8443568069527949
+GradientBoostingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.32,37.92,12.63,0.56,0.73,264.7,25,0.6151471045881082
+GradientBoostingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.32,37.92,12.63,0.56,0.73,264.7,25,0.6151471045881082
+HistGradientBoostingRegressor,AlphaEarth,Other bare soil,0.31,14.32,11.74,0.56,8.7,33.6,15,0.10014535728821446
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Other bare soil,0.31,14.32,11.74,0.56,8.7,33.6,15,0.10014535728821446
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.31,46.26,19.27,0.56,-4.12,479.5,53,0.7080130753565274
+ExtraTreesRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.31,46.26,19.27,0.56,-4.12,479.5,53,0.7080130753565274
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.31,44.68,19.11,0.56,-2.94,479.5,53,0.7644664698283102
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.31,44.68,19.11,0.56,-2.94,479.5,53,0.7644664698283102
+ExtraTreesRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.36,12.87,0.56,0.3,264.7,25,0.5921176173041102
+ExtraTreesRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.36,12.87,0.56,0.3,264.7,25,0.5921176173041102
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.31,46.26,19.09,0.55,-4.79,479.5,53,0.6700408842658175
+ExtraTreesRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.31,46.26,19.09,0.55,-4.79,479.5,53,0.6700408842658175
+RandomForestRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.43,12.86,0.55,1.18,264.7,25,0.5633788601955445
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.43,12.86,0.55,1.18,264.7,25,0.5633788601955445
+GradientBoostingRegressor,sentinel,Potatoes,0.31,14.26,12.1,0.55,10.94,24.6,16,0.6476130174876732
+RandomForestRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.39,13.02,0.55,0.78,264.7,25,0.5676172572465844
+RandomForestRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.31,38.39,13.02,0.55,0.78,264.7,25,0.5676172572465844
+BaggingRegressor,Sentinel + AlphaEarth,Other coniferous woodland,0.3,71.58,49.31,0.55,7.42,437.3,10,0.8
+BaggingRegressor,AlphaEarth,Other coniferous woodland,0.3,71.58,49.31,0.55,7.42,437.3,10,0.8
+GradientBoostingRegressor,AlphaEarth,Shrubland without tree cover,0.3,33.91,22.66,0.55,-7.33,189.5,7,0.31730437331794237
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.3,38.32,13.69,0.55,2.09,264.7,25,0.5248907024985763
+HistGradientBoostingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.3,38.32,13.69,0.55,2.09,264.7,25,0.5248907024985763
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.3,45.85,19.17,0.55,-4.6,479.5,53,0.6577217355363191
+HistGradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.3,45.85,19.17,0.55,-4.6,479.5,53,0.6577217355363191
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.3,45.92,20.15,0.55,-2.67,479.5,53,0.6896036532327697
+RandomForestRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.3,45.92,20.15,0.55,-2.67,479.5,53,0.6896036532327697
+GradientBoostingRegressor,AlphaEarth,Shrubland without tree cover,0.3,33.82,22.25,0.55,-4.93,189.5,7,0.5595387001551011
+GradientBoostingRegressor,AlphaEarth,Shrubland without tree cover,0.3,33.82,22.25,0.55,-4.93,189.5,7,0.5595387001551011
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.3,11.37,7.09,0.55,0.24,113.6,145,0.55412938074959
+GradientBoostingRegressor,AlphaEarth,Other bare soil,0.3,11.37,7.09,0.55,0.24,113.6,145,0.55412938074959
+HistGradientBoostingRegressor,AlphaEarth,Shrubland with sparse tree cover,0.3,43.25,21.24,0.55,-4.89,81.1,18,0.49377085937655013
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Shrubland with sparse tree cover,0.3,43.25,21.24,0.55,-4.89,81.1,18,0.49377085937655013
+BaggingRegressor,AlphaEarth,Spruce dominated mixed woodland,0.3,98.64,67.48,0.54,-6.46,482.4,35,1.0
+BaggingRegressor,Sentinel + AlphaEarth,Spruce dominated mixed woodland,0.3,98.64,67.48,0.54,-6.46,482.4,35,1.0
+AdaBoostRegressor,Sentinel + AlphaEarth,Shrubland with sparse tree cover,0.29,42.36,23.21,0.54,-1.69,81.1,18,0.5631591959838879
+AdaBoostRegressor,AlphaEarth,Shrubland with sparse tree cover,0.29,42.36,23.21,0.54,-1.69,81.1,18,0.5631591959838879
+ExtraTreesRegressor,AlphaEarth,Sunflower,0.29,5.17,3.61,0.54,-0.58,35.6,100,0.8615384615384617
+AdaBoostRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.29,39.77,16.22,0.54,5.39,264.7,25,0.35665207972841867
+AdaBoostRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.29,39.77,16.22,0.54,5.39,264.7,25,0.35665207972841867
+RandomForestRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.29,33.27,22.24,0.54,-6.7,189.5,7,0.4358480312583407
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.29,33.27,22.24,0.54,-6.7,189.5,7,0.4358480312583407
+BaggingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.29,46.39,20.51,0.54,-3.79,479.5,53,0.5981147925381431
+BaggingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.29,46.39,20.51,0.54,-3.79,479.5,53,0.5981147925381431
+RandomForestRegressor,sentinel,Potatoes,0.29,15.44,13.0,0.54,11.78,24.6,16,0.49764336529452596
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.29,33.43,22.62,0.54,-6.88,189.5,7,0.3601455090295385
+ExtraTreesRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.29,33.43,22.62,0.54,-6.88,189.5,7,0.3601455090295385
+ExtraTreesRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.29,44.76,20.14,0.54,-1.72,479.5,53,0.6884375651989045
+BaggingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.28,38.07,13.64,0.53,1.91,264.7,25,0.4859309219820661
+BaggingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.28,38.07,13.64,0.53,1.91,264.7,25,0.4859309219820661
+VotingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.28,44.78,20.4,0.53,-1.64,479.5,53,0.6412839355303956
+AdaBoostRegressor,Sentinel + AlphaEarth,Rye,0.28,12.36,10.77,0.53,7.69,15.2,3,1.0
+AdaBoostRegressor,AlphaEarth,Rye,0.28,12.36,10.77,0.53,7.69,15.2,3,1.0
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.28,34.42,23.17,0.53,-7.56,189.5,7,0.11454545454545466
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.28,34.42,23.17,0.53,-7.56,189.5,7,0.11454545454545466
+RandomForestRegressor,AlphaEarth,Shrubland with sparse tree cover,0.28,42.65,21.11,0.53,-3.38,81.1,18,0.5059451951505052
+GradientBoostingRegressor,AlphaEarth,Potatoes,0.28,6.62,5.36,0.53,2.11,32.6,38,0.8200000000000001
+GradientBoostingRegressor,AlphaEarth,Potatoes,0.28,6.62,5.36,0.53,2.11,32.6,38,0.8200000000000001
+AdaBoostRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.28,39.16,16.19,0.53,6.38,264.7,25,0.3352691422779178
+AdaBoostRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.28,39.16,16.19,0.53,6.38,264.7,25,0.3352691422779178
+AdaBoostRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.28,47.25,20.03,0.53,-4.28,479.5,53,0.545609890629196
+AdaBoostRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.28,47.25,20.03,0.53,-4.28,479.5,53,0.545609890629196
+BaggingRegressor,sentinel,Other bare soil,0.28,15.42,9.28,0.53,4.46,33.6,15,0.21878748517046392
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.28,33.64,22.83,0.53,-6.88,189.5,7,0.2771205428014906
+RandomForestRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.28,33.64,22.83,0.53,-6.88,189.5,7,0.2771205428014906
+VotingRegressor,AlphaEarth,Shrubland without tree cover,0.28,34.42,22.73,0.53,-5.68,189.5,7,0.3132074365447809
+HistGradientBoostingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.28,40.01,15.64,0.53,5.05,264.7,25,0.34079098607992114
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.28,40.01,15.64,0.53,5.05,264.7,25,0.34079098607992114
+AdaBoostRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.27,46.66,19.38,0.52,-3.43,479.5,53,0.5535154507236321
+AdaBoostRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.27,46.66,19.38,0.52,-3.43,479.5,53,0.5535154507236321
+RandomForestRegressor,AlphaEarth,Shrubland without tree cover,0.27,33.61,22.01,0.52,-5.98,189.5,7,0.41378595326505946
+RandomForestRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.27,33.61,22.01,0.52,-5.98,189.5,7,0.41378595326505946
+VotingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.27,37.85,13.99,0.52,3.73,264.7,25,0.43274899946628775
+RandomForestRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.27,47.08,19.78,0.52,-2.98,479.5,53,0.5522360092590983
+RandomForestRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.27,47.08,19.78,0.52,-2.98,479.5,53,0.5522360092590983
+AdaBoostRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.27,41.03,22.5,0.52,13.34,264.7,25,0.025098039215686298
+AdaBoostRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.27,41.03,22.5,0.52,13.34,264.7,25,0.025098039215686298
+BaggingRegressor,Sentinel + AlphaEarth,Shrubland with sparse tree cover,0.27,42.49,23.91,0.52,-1.26,81.1,18,0.3746666666666664
+BaggingRegressor,AlphaEarth,Shrubland with sparse tree cover,0.27,42.49,23.91,0.52,-1.26,81.1,18,0.3746666666666664
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.27,33.85,22.4,0.52,-6.99,189.5,7,0.2667432157898834
+ExtraTreesRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.27,33.85,22.4,0.52,-6.99,189.5,7,0.2667432157898834
+RandomForestRegressor,AlphaEarth,Shrubland with sparse tree cover,0.27,43.15,20.77,0.52,-4.05,81.1,18,0.35629283489096597
+RandomForestRegressor,AlphaEarth,Shrubland with sparse tree cover,0.27,43.15,20.77,0.52,-4.05,81.1,18,0.35629283489096597
+VotingRegressor,AlphaEarth,Other coniferous woodland,0.27,86.25,57.06,0.52,2.25,437.3,10,0.3694146124710813
+ExtraTreesRegressor,AlphaEarth,Sunflower,0.27,5.22,3.67,0.52,-0.49,35.6,100,0.5833333333333341
+ExtraTreesRegressor,AlphaEarth,Sunflower,0.27,5.22,3.67,0.52,-0.49,35.6,100,0.5833333333333341
+RandomForestRegressor,AlphaEarth,Potatoes,0.26,6.94,5.69,0.51,2.18,32.6,38,0.6624008920628721
+AdaBoostRegressor,Sentinel + AlphaEarth,Pine dominated coniferous woodland,0.26,59.0,35.8,0.51,-1.17,413.1,24,1.0
+AdaBoostRegressor,AlphaEarth,Pine dominated coniferous woodland,0.26,59.0,35.8,0.51,-1.17,413.1,24,1.0
+VotingRegressor,AlphaEarth,Spontaneously re-vegetated surfaces,0.26,39.06,14.49,0.51,4.01,264.7,25,0.3573396032762996
+VotingRegressor,Sentinel + AlphaEarth,Spontaneously re-vegetated surfaces,0.26,39.06,14.49,0.51,4.01,264.7,25,0.3573396032762996
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.26,74.73,46.16,0.51,-0.34,173.6,21,0.20443799374628607
+RandomForestRegressor,AlphaEarth,Other mixed woodland,0.26,74.38,42.49,0.51,-2.75,173.6,21,0.23543947932140447
+BaggingRegressor,sentinel,Grassland with sparse tree/shrub cover,0.26,64.22,26.08,0.51,-7.02,479.5,125,0.04222222222222227
+GradientBoostingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.26,45.4,20.19,0.51,-1.88,479.5,53,0.5491589400379111
+GradientBoostingRegressor,AlphaEarth,Shrubland with sparse tree cover,0.26,43.24,21.17,0.51,-5.54,81.1,18,0.17585562632696353
+GradientBoostingRegressor,Sentinel + AlphaEarth,Shrubland with sparse tree cover,0.26,43.24,21.17,0.51,-5.54,81.1,18,0.17585562632696353
+BaggingRegressor,sentinel,Potatoes,0.26,16.36,12.55,0.51,10.83,24.6,16,0.29220064222171804
+GradientBoostingRegressor,AlphaEarth,Other coniferous woodland,0.26,88.34,58.67,0.51,0.53,437.3,10,0.2800000000000001
+GradientBoostingRegressor,AlphaEarth,Other coniferous woodland,0.26,88.34,58.67,0.51,0.53,437.3,10,0.2800000000000001
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.26,75.27,45.62,0.51,1.62,173.6,21,0.16995856385998992
+AdaBoostRegressor,AlphaEarth,Other mixed woodland,0.26,75.27,45.62,0.51,1.62,173.6,21,0.16995856385998992
+RandomForestRegressor,AlphaEarth,Other bare soil,0.26,12.01,7.19,0.51,2.05,33.6,15,0.4350064734155475
+RandomForestRegressor,Sentinel + AlphaEarth,Other bare soil,0.26,12.01,7.19,0.51,2.05,33.6,15,0.4350064734155475
+GradientBoostingRegressor,AlphaEarth,Other coniferous woodland,0.26,86.61,55.59,0.51,-4.63,437.3,10,0.24744329481079158
+BaggingRegressor,Sentinel + AlphaEarth,Grassland without tree/shrub cover,0.25,25.4,19.0,0.5,10.18,507.4,625,0.8
+BaggingRegressor,Sentinel + AlphaEarth,Grassland with sparse tree/shrub cover,0.25,46.82,20.29,0.5,-3.59,479.5,53,0.4373068685683689
+BaggingRegressor,AlphaEarth,Grassland with sparse tree/shrub cover,0.25,46.82,20.29,0.5,-3.59,479.5,53,0.4373068685683689
+BaggingRegressor,sentinel,Potatoes,0.25,26.07,15.47,0.5,14.68,24.6,16,0.0
+HistGradientBoostingRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.25,34.25,22.81,0.5,-7.23,189.5,7,0.08544728598303765
+HistGradientBoostingRegressor,AlphaEarth,Shrubland without tree cover,0.25,34.25,22.81,0.5,-7.23,189.5,7,0.08544728598303765
+RandomForestRegressor,AlphaEarth,Sunflower,0.25,5.29,3.7,0.5,-0.62,35.6,100,0.0
+VotingRegressor,Sentinel + AlphaEarth,Grassland without tree/shrub cover,0.25,27.13,19.76,0.5,9.42,507.4,625,0.6
+GradientBoostingRegressor,AlphaEarth,Other coniferous woodland,0.25,72.12,50.39,0.5,-1.45,437.3,10,0.5437737927403348
+GradientBoostingRegressor,Sentinel + AlphaEarth,Other coniferous woodland,0.25,72.12,50.39,0.5,-1.45,437.3,10,0.5437737927403348
+ExtraTreesRegressor,Sentinel + AlphaEarth,Shrubland without tree cover,0.25,34.27,22.69,0.5,-7.19,189.5,7,0.10193985406103297
+ExtraTreesRegressor,AlphaEarth,Shrubland without tree cover,0.25,34.27,22.69,0.5,-7.19,189.5,7,0.10193985406103297
