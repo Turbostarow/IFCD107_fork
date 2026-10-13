@@ -1,0 +1,38 @@
+{
+  "info": {
+    "name": "API de regresión polinómica",
+    "description": "Ejemplos de salud, ajuste con JSON y ajuste con CSV multipart. Cada referencia crea sus carpetas de artefactos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://127.0.0.1:5000"},
+    {"key": "reference", "value": "terrazas_madrid_demo"}
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/v1/health"}
+    },
+    {
+      "name": "Ajustar desde JSON",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"reference\": \"{{reference}}\",\n  \"degree\": 2,\n  \"data\": [\n    {\"x\": -3, \"y\": 10.1},\n    {\"x\": -2, \"y\": 5.9},\n    {\"x\": -1, \"y\": 2.2},\n    {\"x\": 0, \"y\": 1.0},\n    {\"x\": 1, \"y\": 1.8},\n    {\"x\": 2, \"y\": 6.2},\n    {\"x\": 3, \"y\": 10.0},\n    {\"x\": 4, \"y\": 17.1}\n  ]\n}"},
+        "url": "{{baseUrl}}/api/v1/regresion/polinomica"
+      }
+    },
+    {
+      "name": "Ajustar desde CSV",
+      "request": {
+        "method": "POST",
+        "body": {"mode": "formdata", "formdata": [
+          {"key": "reference", "value": "{{reference}}", "type": "text"},
+          {"key": "degree", "value": "2", "type": "text"},
+          {"key": "file", "type": "file", "src": "../ejemplos/datos_ejemplo.csv"}
+        ]},
+        "url": "{{baseUrl}}/api/v1/regresion/polinomica/csv"
+      }
+    }
+  ]
+}
