@@ -9,11 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 from sklearn.model_selection import train_test_split
-
+import json
 import numpy as np
 from flask import g, jsonify
 
-from regression.polynomial_regressor import PolynomialRegressor
+from regression.polynomial_regressor import PolynomialRegressor,build_polynomial_search
 from regression.random_forest_regressor import RandomForestRegressorModel
 
 # Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
@@ -248,5 +248,117 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
     finally:
         # Cerrar el handler por solicitud evita descriptores abiertos durante un
         # servicio prolongado y permite leer/archivar el log al terminar la petición.
+        handler.close()
+        logger.removeHandler(handler)
+
+
+def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None):
+    """Separa los datos, busca el modelo y guarda sus resultados para la API."""
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from sklearn.model_selection import train_test_split
+    import pickle
+    import matplotlib.pyplot as plt
+
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
+    base = Path(output_root) / reference
+    folders = {name: base / name for name in ("graficas", "csv_entrada", "logs_salida", "csv_salida", "modelos")}
+    for folder in folders.values():
+        folder.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger(f"polynomial_search.{reference}.{run_id}")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(folders["logs_salida"] / f"{run_id}.log", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        source_kind = "csv" if raw_csv is not None else "json"
+        logger.info("RandomizedSearchCV user=%s client_ip=%s source=%s",
+                    getattr(g, "authenticated_user", None) or "anonymous",
+                    getattr(g, "client_ip", None) or "unknown", source_kind)
+        input_path = folders["csv_entrada"] / f"{run_id}.csv"
+        if raw_csv is not None:
+            input_path.write_bytes(raw_csv)
+        else:
+            with input_path.open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.writer(stream)
+                writer.writerow(["x", "y"])
+                writer.writerows(zip(x.tolist(), y.tolist()))
+
+        # Apartamos un 20% para medir el rendimiento final. RandomizedSearchCV
+        # solo ve el 80% restante, así la prueba no influye en la selección.
+        indices = np.arange(len(x))
+        train_idx, test_idx = train_test_split(
+            indices, test_size=0.2, random_state=options["random_state"]
+        )
+        # El pipeline prueba combinaciones usando validación cruzada dentro del
+        # conjunto de entrenamiento y vuelve a ajustar la ganadora (refit=True).
+        search = build_polynomial_search(
+            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"]
+        )
+        X_train = x[train_idx].reshape(-1, 1)
+        X_test = x[test_idx].reshape(-1, 1)
+        fit_kwargs = {}
+        if weights is not None:
+            # Pipeline necesita el prefijo del paso para enviar los pesos al modelo.
+            fit_kwargs["polynomial__sample_weight"] = weights[train_idx]
+        search.fit(X_train, y[train_idx], **fit_kwargs)
+        # La evaluación se calcula con datos que no participaron en la búsqueda.
+        predicted = search.best_estimator_.predict(X_test)
+        observed = y[test_idx]
+        residuals = observed - predicted
+        metrics = {
+            "r2": float(r2_score(observed, predicted)),
+            "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
+            "mae": float(mean_absolute_error(observed, predicted)),
+        }
+        csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
+        np.savetxt(csv_path, np.column_stack((x[test_idx], observed, predicted, residuals)),
+                   delimiter=",", header="x,y_observado,y_predicho,residuo", comments="", fmt="%.10g")
+        graph_path = folders["graficas"] / f"{run_id}_randomized_search.png"
+        order = np.argsort(x[test_idx])
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        ax.scatter(x[test_idx], observed, label="Observaciones", color="#1f77b4", alpha=0.85)
+        ax.plot(x[test_idx][order], predicted[order], label="Mejor ajuste", color="#d62728")
+        ax.set(title="Regresión polinómica optimizada", xlabel="x", ylabel="y")
+        ax.grid(True, alpha=0.25)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(graph_path, dpi=160)
+        plt.close(fig)
+        model_path = folders["modelos"] / f"{run_id}_randomized_search.pkt"
+        with model_path.open("wb") as stream:
+            pickle.dump(search.best_estimator_, stream, protocol=pickle.HIGHEST_PROTOCOL)
+        metadata = {
+            "reference": reference,
+            "run_id": run_id,
+            "algorithm": "PolynomialRegressionRandomizedSearchCV",
+            "best_parameters": search.best_params_,
+            "best_cv_rmse": float(np.sqrt(-search.best_score_)),
+            "metrics": metrics,
+            "n_rows_input": int(len(x)),
+            "n_rows_train": int(len(train_idx)),
+            "n_rows_test": int(len(test_idx)),
+            "artifacts": {
+                "input_csv": str(input_path.relative_to(output_root)),
+                "output_csv": str(csv_path.relative_to(output_root)),
+                "graph_png": str(graph_path.relative_to(output_root)),
+                "trained_model_pkt": str(model_path.relative_to(output_root)),
+                "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
+            },
+        }
+        best_estimator_params = search.best_estimator_.named_steps["polynomial"].get_params(deep=False)
+        logger.info(
+            "RandomizedSearchCV completado param_distributions=%s best_estimator_params=%s best=%s metrics=%s",
+            json.dumps(search.param_distributions, sort_keys=True, default=str),
+            json.dumps(best_estimator_params, sort_keys=True, default=str),
+            search.best_params_, metrics,
+        )
+        return jsonify(metadata), 200
+    except (ValueError, np.linalg.LinAlgError) as exc:
+        logger.exception("No se pudo entrenar RandomizedSearchCV: %s", exc)
+        return jsonify(error=f"No se pudo entrenar el modelo: {exc}", reference=reference, run_id=run_id), 422
+    except Exception:
+        logger.exception("Error interno en RandomizedSearchCV")
+        return jsonify(error="Error interno durante la búsqueda del modelo.", reference=reference, run_id=run_id), 500
+    finally:
         handler.close()
         logger.removeHandler(handler)

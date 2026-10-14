@@ -11,6 +11,7 @@ from functools import wraps
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 from flask import Flask, g, jsonify, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -18,7 +19,7 @@ from dotenv import load_dotenv
 
 from api_functions import (
     parse_csv, parse_json_points, random_forest_options, run_model,
-    run_random_forest, validate_reference,
+    run_random_forest, run_polynomial_search, validate_reference,
 )
 
 
@@ -226,6 +227,81 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
             return jsonify(error=f"CSV no válido: {exc}"), 400
         return run_model(app, output_root, reference, degree, x, y, "csv", raw_csv=raw)
 
+    @app.post("/api/v1/regresion/polinomica/randomizedsearch")
+    @require_token
+    def fit_polynomial_randomized_search():
+        """Recibe datos JSON o CSV y busca la mejor configuración polinómica."""
+        raw_csv = None
+        # El mismo endpoint admite dos formatos: JSON lleva una lista de puntos;
+        # multipart/form-data lleva los parámetros en form y el archivo en file.
+        if request.is_json:
+            source = request.get_json(silent=True)
+            if not isinstance(source, dict):
+                return jsonify(error="El cuerpo debe ser un objeto JSON."), 400
+            try:
+                x, y = parse_json_points(source.get("data"))
+            except ValueError as exc:
+                return jsonify(error=str(exc)), 400
+        else:
+            source = request.form
+            uploaded = request.files.get("file")
+            if uploaded is None or not uploaded.filename:
+                return jsonify(error="Falta el archivo CSV en el campo multipart 'file'."), 400
+            raw_csv = uploaded.read()
+            if len(raw_csv) > 4 * 1024 * 1024:
+                return jsonify(error="El CSV supera el límite de 4 MB."), 413
+            try:
+                x, y = parse_csv(raw_csv.decode("utf-8-sig"))
+            except (UnicodeDecodeError, ValueError) as exc:
+                return jsonify(error=f"CSV no válido: {exc}"), 400
+
+        reference, error = validate_reference(source.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+
+        def parse_integer(name, default, minimum, maximum):
+            # Los números JSON llegan como int; los campos de un formulario llegan
+            # como texto. Convertimos ambos formatos y después aplicamos el límite.
+            raw = source.get(name, default)
+            try:
+                if isinstance(raw, bool) or (isinstance(raw, str) and not raw.strip()):
+                    raise ValueError
+                parsed = int(raw)
+                if isinstance(raw, float) and raw != parsed:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.") from None
+            if not minimum <= parsed <= maximum:
+                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.")
+            return parsed
+
+        try:
+            n_iter = parse_integer("n_iter", 20, 1, 80)
+            cv = parse_integer("cv", 5, 2, 10)
+            random_state = parse_integer("random_state", 42, 0, 2**32 - 1)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        if cv >= int(len(x) * 0.8):
+            return jsonify(error="cv debe ser menor que el número de observaciones de entrenamiento (80% de data)."), 400
+        # Los pesos siguen el mismo orden que las filas de entrada. El ejecutor
+        # recorta este vector junto con los datos en cada partición train/test.
+        weights = source.get("w")
+        if weights is not None:
+            if isinstance(weights, str):
+                try:
+                    weights = json.loads(weights)
+                except json.JSONDecodeError:
+                    return jsonify(error="w debe ser una lista JSON de pesos numéricos."), 400
+            try:
+                weights = np.asarray(weights, dtype=float)
+            except (TypeError, ValueError):
+                return jsonify(error="w debe ser una lista numérica con un peso por observación."), 400
+            if weights.ndim != 1 or len(weights) != len(x) or not np.isfinite(weights).all() or np.any(weights < 0):
+                return jsonify(error="w debe contener pesos finitos no negativos, uno por observación."), 400
+        options = {"n_iter": n_iter, "cv": cv, "random_state": random_state}
+        return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv)
+    
+    
     @app.post("/api/v1/random-forest/terrazas")
     @require_token
     def fit_random_forest_terraces():

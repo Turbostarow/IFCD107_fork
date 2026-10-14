@@ -7,6 +7,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.pipeline import Pipeline
 
 
 
@@ -19,6 +22,11 @@ class FitResult:
     predicted: np.ndarray
     residuals: np.ndarray
     metrics: dict
+    rank: int | None = None
+    singular_values: np.ndarray | None = None
+    rcond: float | None = None
+    covariance: np.ndarray | None = None
+    fit_residuals: np.ndarray | None = None
 
 
 class PolynomialRegressor:
@@ -34,9 +42,19 @@ class PolynomialRegressor:
         self.y_train = y_train
         self.y_test = y_test
 
-    def fit(self) -> FitResult:
-        # Convertir a arrays numéricos una sola vez simplifica validaciones y
-        # garantiza que el ajuste opere sobre datos homogéneos.
+    def fit(self, rcond=None, full: bool = False, w=None, cov=False) -> FitResult:
+        """Ajusta el polinomio; los argumentos siguen las opciones de ``numpy.polyfit``.
+
+        ``full=True`` incluye rango, valores singulares y residuos del ajuste en
+        FitResult. ``cov`` puede ser True (covarianza escalada) o ``'unscaled'``.
+        """
+        if not isinstance(full, (bool, np.bool_)):
+            raise TypeError("full debe ser booleano.")
+        if not (isinstance(cov, (bool, np.bool_)) or (isinstance(cov, str) and cov == "unscaled")):
+            raise ValueError("cov debe ser False, True o 'unscaled'.")
+        cov = "unscaled" if isinstance(cov, str) else bool(cov)
+        # Convertimos a arrays numéricos una sola vez. x/y de train aprenden los
+        # coeficientes; x/y de test se reservan para medir el ajuste.
         x = np.asarray(self.X_train, dtype=float)
         y = np.asarray(self.y_train, dtype=float)
         x_t = np.asarray(self.X_test, dtype=float)
@@ -51,17 +69,43 @@ class PolynomialRegressor:
             raise ValueError("Los datos deben ser finitos.")
         if np.unique(x).size <= self.degree:
             raise ValueError("Se necesitan más valores x distintos que el grado del polinomio.")
-        # Polynomial.fit escala internamente el dominio y mejora el condicionamiento
-        # frente a construir directamente potencias grandes de x. convert() pasa
-        # después al dominio estándar para guardar coeficientes legibles/reutilizables.
-        fitted = np.polynomial.Polynomial.fit(x,y , deg=self.degree)
-        polynomial = fitted.convert()
-        coefficients = polynomial.coef[::-1]
+        weights = None if w is None else np.asarray(w, dtype=float)
+        if weights is not None and (weights.ndim != 1 or len(weights) != len(x)):
+            raise ValueError("w debe ser un vector con un peso por observación de entrenamiento.")
+        if weights is not None and (not np.isfinite(weights).all() or np.any(weights < 0)):
+            raise ValueError("w debe contener pesos finitos no negativos.")
+        if rcond is not None:
+            if isinstance(rcond, bool) or not np.isscalar(rcond):
+                raise ValueError("rcond debe ser un número finito no negativo o None.")
+            try:
+                rcond = float(rcond)
+            except (TypeError, ValueError):
+                raise ValueError("rcond debe ser un número finito no negativo o None.") from None
+            if not np.isfinite(rcond) or rcond < 0:
+                raise ValueError("rcond debe ser un número finito no negativo o None.")
+        # polyfit calcula los coeficientes. w pondera los residuos; full pide
+        # diagnósticos SVD y cov pide la incertidumbre de los coeficientes.
+        fitted = np.polyfit(x, y, self.degree, rcond=rcond, full=bool(full), w=weights, cov=cov)
+        if full:
+            coefficients, fit_residuals, rank, singular_values, used_rcond = fitted
+            covariance = None
+        elif cov is not False:
+            coefficients, covariance = fitted
+            fit_residuals = np.array([], dtype=float)
+            rank = None
+            singular_values = None
+            used_rcond = rcond
+        else:
+            coefficients = fitted
+            covariance = None
+            fit_residuals = np.array([], dtype=float)
+            rank = None
+            singular_values = None
+            used_rcond = rcond
         self.coefficients_ = coefficients.copy()
-        #Para vlidar solo uso la X_test
-        predicted = polynomial(x_t)
-        #predicted contiene lo valores de y obtenidos con el modelo
-        # los residuos miden la diferencia entre lo que me da el algoritmo predicted y el valor real y_test 
+        # Evaluamos con X_test, que no se usó para calcular los coeficientes.
+        predicted = np.polyval(coefficients, x_t)
+        # El residuo es el valor real menos la predicción para cada fila.
         residuals = y_t - predicted
         # R² no está definido si y es constante. En el caso perfecto se informa 1;
         # si no lo es, se informa 0 como valor neutro y se conserva RMSE/MAE.
@@ -73,7 +117,11 @@ class PolynomialRegressor:
             "rmse": float(np.sqrt(np.mean(residuals ** 2))),
             "mae": float(np.mean(np.abs(residuals))),
         }
-        return FitResult(coefficients, x_t.copy(), np.asarray(predicted), residuals, metrics)
+        return FitResult(np.asarray(coefficients), x_t.copy(), np.asarray(predicted), residuals, metrics,
+                         rank, np.asarray(singular_values) if singular_values is not None else None,
+                         float(used_rcond) if used_rcond is not None else None,
+                         np.asarray(covariance) if covariance is not None else None,
+                         np.asarray(fit_residuals) if full else None)
 
     def predict(self, x):
         """Predice con un modelo ya entrenado; x puede ser escalar o vector."""
@@ -133,3 +181,81 @@ class PolynomialRegressor:
         fig.tight_layout()
         fig.savefig(path, dpi=160)
         plt.close(fig)
+
+
+class PolynomialSearchEstimator(RegressorMixin, BaseEstimator):
+    """Adaptador para que la clase NumPy se pueda usar en Pipeline y CV.
+
+    scikit-learn llama a fit(X, y) en cada pliegue y a predict(X) para puntuarlo.
+    Este adaptador convierte la columna X al formato que espera PolynomialRegressor.
+    """
+
+    def __init__(self, degree=2, rcond=None, full=False, w=None, cov=False):
+        self.degree = degree
+        self.rcond = rcond
+        self.full = full
+        self.w = w
+        self.cov = cov
+
+    def fit(self, X, y, sample_weight=None):
+        # Un polinomio de esta práctica tiene un único predictor, x. sklearn lo
+        # entrega como matriz (filas, columnas); la clase base usa un vector.
+        x = np.asarray(X, dtype=float)
+        if x.ndim == 2 and x.shape[1] == 1:
+            x = x[:, 0]
+        if x.ndim != 1:
+            raise ValueError("PolynomialSearchEstimator acepta exactamente una columna X.")
+        # sample_weight se recorta automáticamente por RandomizedSearchCV para
+        # cada pliegue. self.w queda como opción para un ajuste sin validación.
+        weights = sample_weight if sample_weight is not None else self.w
+        self.regressor_ = PolynomialRegressor(x, x, y, y, degree=self.degree)
+        self.fit_result_ = self.regressor_.fit(
+            rcond=self.rcond, full=self.full, w=weights, cov=self.cov
+        )
+        self.coef_ = self.regressor_.coefficients_
+        self.n_features_in_ = 1
+        return self
+
+    def predict(self, X):
+        if not hasattr(self, "regressor_"):
+            raise ValueError("El estimador aún no está entrenado.")
+        x = np.asarray(X, dtype=float)
+        if x.ndim == 2 and x.shape[1] == 1:
+            x = x[:, 0]
+        if x.ndim != 1:
+            raise ValueError("PolynomialSearchEstimator acepta exactamente una columna X.")
+        return self.regressor_.predict(x)
+
+
+# RandomizedSearchCV elige valores de estas listas para el paso `polynomial`.
+# Los nombres llevan `polynomial__` porque ése es el nombre del paso del Pipeline.
+# `w` se deja en None porque una matriz de pesos de tamaño fijo no es válida al
+# cambiar los pliegues CV; pase los pesos reales a search.fit como sample_weight.
+POLYNOMIAL_PARAM_DISTRIBUTIONS = {
+    # Cada lista da las opciones que RandomizedSearchCV puede probar.
+    "polynomial__degree": [1, 2, 3, 4, 5],
+    # rcond ajusta qué valores singulares pequeños se descartan.
+    "polynomial__rcond": [None, 1e-12, 1e-10, 1e-8],
+    # full y cov solicitan información diagnóstica del ajuste.
+    "polynomial__full": [False, True],
+    # Una lista w fija no sirve en pliegues de tamaños distintos; use sample_weight.
+    "polynomial__w": [None],
+    "polynomial__cov": [False,  "unscaled"],
+}
+
+
+def build_polynomial_search(n_iter=20, cv=5, random_state=42, param_distributions=None):
+    """Construye la búsqueda reproducible para una variable x."""
+    # Pipeline reúne el estimador bajo un nombre estable para que sus parámetros
+    # puedan escribirse en el diccionario de búsqueda con el prefijo `polynomial__`.
+    pipeline = Pipeline([("polynomial", PolynomialSearchEstimator())])
+    return RandomizedSearchCV(
+        estimator=pipeline,
+        param_distributions=(param_distributions if param_distributions is not None
+                             else POLYNOMIAL_PARAM_DISTRIBUTIONS),
+        n_iter=n_iter,
+        cv=cv,
+        random_state=random_state,
+        scoring="neg_mean_squared_error",
+        refit=True,
+    )

@@ -47,6 +47,7 @@ class RandomForestRegressorModel:
         self.random_state = random_state
 
     def fit(self, frame: pd.DataFrame, target: str = "y") -> RandomForestResult:
+        # Primero se separa la columna que queremos predecir del resto de la tabla.
         if target not in frame.columns:
             raise ValueError(f"No existe la columna objetivo '{target}'.")
         # El ID solo enlaza resultados con expedientes; excluirlo evita memorizar claves.
@@ -62,7 +63,8 @@ class RandomForestRegressorModel:
             raise ValueError("Se requieren al menos 10 filas con objetivo numérico para entrenar y evaluar.")
         X = data[feature_columns].copy()
         y = data[target].astype(float)
-        # Las columnas textuales enteramente numéricas pasan a continuas; las demás son categorías.
+        # El texto que solo contiene números se convierte a número; el resto se
+        # tratará como categoría, por ejemplo el tipo de procedimiento.
         for column in feature_columns:
             if X[column].dtype == object:
                 converted = pd.to_numeric(X[column], errors="coerce")
@@ -71,6 +73,7 @@ class RandomForestRegressorModel:
                     X[column] = converted
         numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
         categorical_columns = [col for col in feature_columns if col not in numeric_columns]
+        # Cada grupo de columnas necesita su propio tratamiento de valores ausentes.
         transformers = []
         if numeric_columns:
             transformers.append(("numeric", Pipeline([("imputer", SimpleImputer(strategy="median"))]), numeric_columns))
@@ -79,6 +82,8 @@ class RandomForestRegressorModel:
                 ("imputer", SimpleImputer(strategy="most_frequent")),
                 ("onehot", OneHotEncoder(handle_unknown="ignore")),
             ]), categorical_columns))
+        # Pipeline repite automáticamente el mismo preprocesamiento al entrenar y
+        # predecir, antes de ejecutar RandomForestRegressor.
         pipeline = Pipeline([
             ("preprocess", ColumnTransformer(transformers=transformers, remainder="drop")),
             ("random_forest", RandomForestRegressor(
@@ -86,6 +91,8 @@ class RandomForestRegressorModel:
                 random_state=self.random_state, n_jobs=-1,
             )),
         ])
+        # Reservamos filas de prueba que no participan en el entrenamiento; las
+        # métricas posteriores estiman cómo funciona el modelo con datos nuevos.
         indices = np.arange(len(y))
         train_idx, test_idx = train_test_split(indices, test_size=self.test_size, random_state=self.random_state)
         pipeline.fit(X.iloc[train_idx], y.iloc[train_idx])
@@ -100,6 +107,8 @@ class RandomForestRegressorModel:
         predictions = pd.DataFrame({"y_observado": observed, "y_predicho": predicted, "residuo": residuals})
         if id_column:
             predictions.insert(0, id_column, data[id_column].iloc[test_idx].to_numpy())
+        # One-hot encoding puede expandir una categoría a varias columnas; usamos
+        # los nombres transformados para etiquetar la importancia del bosque.
         names = pipeline.named_steps["preprocess"].get_feature_names_out()
         scores = pipeline.named_steps["random_forest"].feature_importances_
         importance = [{"feature": str(name), "importance": float(score)} for name, score in

@@ -22,11 +22,11 @@
 \maketitle
 \thispagestyle{fancy}
 \begin{abstract}
-Este proyecto ofrece una API REST Flask con regresión polinómica y Random Forest. La capa HTTP valida solicitudes y organiza ejecuciones por referencia; clases separadas encapsulan el entrenamiento y los artefactos. La colección Postman incluye ejemplos JSON y CSV.
+Este proyecto ofrece una API REST Flask con regresión polinómica, búsqueda de hiperparámetros mediante \texttt{RandomizedSearchCV} y Random Forest. La capa HTTP valida solicitudes; funciones auxiliares coordinan cada ejecución y las clases de \texttt{regression/} encapsulan los modelos. La colección Postman incluye ejemplos JSON y CSV.
 \end{abstract}
 
 \section{Descripción de la solución}
-La aplicación ofrece dos algoritmos: regresión polinómica sobre pares $(x,y)$ y Random Forest para regresión tabular con variables numéricas y categóricas. El ejemplo de dominio representa la gestión de expedientes de terrazas: $x$ es un índice didáctico de complejidad y $y$ son días de tramitación simulados. El conjunto de 1.000 filas es sintético, no contiene expedientes reales ni reproduce estadísticas o plazos del Ayuntamiento de Madrid. La clase de regresión polinómica ajusta el modelo usando \texttt{numpy.polynomial.Polynomial.fit}, calcula predicciones, residuos y métricas $R^2$, RMSE y MAE. La API guarda datos de entrada, CSV de predicciones, gráfico, modelo entrenado y log por ejecución.
+La aplicación ofrece dos familias de modelos: regresión polinómica sobre pares $(x,y)$ y Random Forest para regresión tabular con variables numéricas y categóricas. La regresión polinómica también ofrece una ruta que compara configuraciones mediante validación cruzada. El ejemplo de dominio representa la gestión de expedientes de terrazas: $x$ es un índice didáctico de complejidad y $y$ son días de tramitación simulados. Los datos son sintéticos, no contienen expedientes reales ni reproducen estadísticas o plazos del Ayuntamiento de Madrid. Cada ejecución guarda la entrada, predicciones, gráfica, modelo y log.
 
 \begin{center}
 \begin{tabular}{ll}\toprule
@@ -35,8 +35,7 @@ Componente & Responsabilidad\\\midrule
 \texttt{regression/polynomial\_regressor.py} & Ajuste matemático, métricas, CSV de salida y gráfica.\\
 \texttt{regression/random\_forest\_regressor.py} & Preprocesamiento mixto, entrenamiento RF e importancia de variables.\\
 \texttt{scripts/generate\_terrace\_cases.py} & Generador determinista de las 1.000 filas sintéticas.\\
-\texttt{ejemplos/datos\_ejemplo.csv} & Expedientes demostrativos con contexto y campos $x,y$.\\
-\texttt{ejemplos/datos\_ejemplo\_complejo.csv} & Datos tabulares sintéticos para Random Forest.\\
+\texttt{ejemplos/datos\_ejemplo\_xy.csv} & Datos con columnas $x,y$ para los endpoints polinómicos.\\
 \texttt{postman/} & Colección importable con health, autenticación Bearer, solicitudes JSON/CSV de ambos algoritmos.\\
 \texttt{runs/} & Artefactos generados, separados por referencia y ejecución.\\\bottomrule
 \end{tabular}
@@ -49,7 +48,7 @@ proyecto_regresion_polinomica/
   api_functions.py
   regression/polynomial_regressor.py
   regression/random_forest_regressor.py
-  ejemplos/datos_ejemplo.csv
+  ejemplos/datos_ejemplo_xy.csv
   ejemplos/datos_ejemplo_complejo.csv
   postman/Regresion_Polinomica.postman_collection.json
   documentacion/guia_proyecto.tex
@@ -60,7 +59,7 @@ proyecto_regresion_polinomica/
     csv_salida/<run_id>_predicciones.csv
     modelos/<run_id>_modelo.pkt
 \end{lstlisting}
-La referencia admite letras, números, punto, guion y guion bajo, con máximo de 64 caracteres. Se rechazan rutas o separadores para evitar escapar del directorio de ejecución. Cada petición genera un identificador de ejecución único, por lo que conserva varias ejecuciones dentro de la misma referencia.
+La referencia admite letras, números, punto, guion y guion bajo, con máximo de 64 caracteres. Se rechazan rutas o separadores para evitar escapar del directorio de ejecución. Cada petición genera un identificador único, llamado \texttt{run\_id}; así se guardan varias ejecuciones sin sobrescribir los archivos de la misma referencia.
 
 \section{Instalación y arranque}
 Se recomienda Python 3.10 o superior. Desde la carpeta raíz del proyecto:
@@ -75,6 +74,30 @@ La API carga automáticamente las variables del archivo local \texttt{.env} al a
 
 La API queda disponible localmente en \url{http://127.0.0.1:5000}. \url{http://127.0.0.1:5000/api/v1/health} es público y devuelve el estado del servicio.
 
+\section{Flujo de ejecución}
+Para seguir el programa desde el principio, piense en cada petición como una cadena de pasos: Postman envía datos, Flask valida la petición, una función de \texttt{api\_functions.py} ejecuta el modelo, y finalmente Flask devuelve JSON con el resultado y las rutas de los archivos creados.
+
+\begin{enumerate}
+\item \textbf{Arranque.} Al ejecutar \texttt{python app.py}, Flask crea la aplicación y registra sus rutas. La ruta pública \texttt{/api/v1/health} permite comprobar que el servidor responde.
+\item \textbf{Autenticación.} El cliente envía usuario y contraseña a \texttt{/api/v1/auth/token}. Si coinciden con la configuración, la API devuelve un token firmado. En las peticiones de entrenamiento, el decorador \texttt{@require\_token} comprueba el token antes de ejecutar la ruta.
+\item \textbf{Lectura y validación.} Las rutas polinómicas aceptan puntos JSON o archivos CSV con encabezados \texttt{x,y}. Las rutas Random Forest reciben JSON para el conjunto de ejemplo o CSV multipart. Flask valida referencia, formato, tamaño y parámetros antes de iniciar el entrenamiento.
+\item \textbf{Entrenamiento.} La ruta llama a una función en \texttt{api\_functions.py}. Esa función divide los datos, construye el estimador o pipeline y calcula predicciones y métricas.
+\item \textbf{Archivos y respuesta.} La función crea un \texttt{run\_id}, guarda los artefactos bajo \texttt{runs/<referencia>/} y devuelve el identificador, métricas y rutas en una respuesta JSON.
+\end{enumerate}
+
+\subsection{Flujo de regresión polinómica}
+\texttt{POST /api/v1/regresion/polinomica} recibe JSON con \texttt{degree} y una lista \texttt{data}. La variante \texttt{/csv} recibe \texttt{reference}, \texttt{degree} y un archivo CSV. Ambas terminan en \texttt{run\_model}: esta función separa entrenamiento y prueba, crea \texttt{PolynomialRegressor}, ajusta los coeficientes con NumPy y calcula predicciones y métricas para la partición de prueba. Después guarda el modelo, las predicciones, la gráfica y el log.
+
+\subsection{Flujo de RandomizedSearchCV}
+\texttt{POST /api/v1/regresion/polinomica/randomizedsearch} admite los dos formatos: JSON con \texttt{data}, o \texttt{multipart/form-data} con \texttt{file} (CSV con columnas \texttt{x,y}). En ambos casos también se pueden enviar \texttt{n\_iter}, \texttt{cv} y \texttt{random\_state}. El campo opcional \texttt{w} es una lista de pesos, uno por cada fila.
+
+La ruta valida y convierte la entrada, y llama a \texttt{run\_polynomial\_search}. Esta función reserva primero el 20\% de las filas como prueba final. En el 80\% restante, \texttt{RandomizedSearchCV} muestrea combinaciones del diccionario \texttt{POLYNOMIAL\_PARAM\_DISTRIBUTIONS}; para cada combinación, valida el resultado en \texttt{cv} pliegues. El \texttt{Pipeline} conecta el adaptador \texttt{PolynomialSearchEstimator} con scikit-learn, mientras que el adaptador llama a \texttt{PolynomialRegressor}. Cuando termina la búsqueda, la mejor configuración se vuelve a ajustar con todos los datos de entrenamiento y se evalúa una sola vez con el conjunto de prueba reservado.
+
+La respuesta de búsqueda incluye \texttt{best\_parameters}, el RMSE promedio de validación cruzada, las métricas de prueba y las rutas de los archivos. El log también registra el diccionario de distribuciones y los parámetros del mejor estimador. \texttt{full} y \texttt{cov} controlan diagnósticos del ajuste; no son métricas de rendimiento, por lo que no cambian el criterio de selección (RMSE).
+
+\subsection{Flujo de Random Forest}
+Las rutas \texttt{/api/v1/random-forest/terrazas} y \texttt{/api/v1/random-forest/csv} llaman a \texttt{run\_random\_forest}. La clase \texttt{RandomForestRegressorModel} separa la columna objetivo de las predictoras, prepara las columnas numéricas y categóricas en un \texttt{ColumnTransformer}, y combina ese preprocesamiento con \texttt{RandomForestRegressor} en un \texttt{Pipeline}. El conjunto de prueba queda fuera del entrenamiento. La respuesta incluye métricas, las importancias principales y las rutas de los artefactos.
+
 \section{Prueba desde Postman}
 \begin{enumerate}
 \item En Postman, importar \texttt{postman/Regresion\_Polinomica.postman\_collection.json}.
@@ -83,8 +106,8 @@ La API queda disponible localmente en \url{http://127.0.0.1:5000}. \url{http://1
 \item Ejecutar \textbf{Health}; debe responder HTTP 200.
 \item Ejecutar \textbf{Obtener token}. La colección guarda automáticamente el token Bearer recibido. Credenciales incorrectas producen HTTP 401.
 \item Ejecutar \textbf{Ajustar desde JSON}. La colección ya incluye datos sintéticos y grado 2. Postman establece \texttt{Content-Type: application/json}.
-\item Para el caso de terrazas, ejecutar \textbf{Ajustar desde CSV}; en el campo \texttt{file}, seleccionar \texttt{ejemplos/datos\_ejemplo.csv}. El CSV tiene 1.000 filas de datos, campos de referencia sintéticos y encabezados \texttt{x,y}. Postman construye multipart/form-data; no fijar manualmente el encabezado boundary.
-\texttt{ejemplos/datos\_ejemplo\_complejo.csv} & Datos tabulares sintéticos para Random Forest.\\
+\item Para los datos polinómicos CSV, ejecutar \textbf{Ajustar desde CSV} y seleccionar \texttt{ejemplos/datos\_ejemplo\_xy.csv}. Postman crea el formulario multipart; no fijar manualmente el encabezado boundary.
+\item Ejecutar \textbf{Regresión polinómica - RandomizedSearchCV} para buscar parámetros con puntos JSON, o \textbf{RandomizedSearchCV - cargar CSV} para adjuntar \texttt{ejemplos/datos\_ejemplo\_xy.csv}. Ambas solicitudes llaman a \texttt{/api/v1/regresion/polinomica/randomizedsearch}.
 \item Ejecutar \textbf{Random Forest - CSV de terrazas incluido} para entrenar sin adjuntar fichero, o \textbf{Random Forest - cargar CSV} y seleccionar \texttt{ejemplos/datos\_ejemplo\_complejo.csv}. El objetivo por defecto es \texttt{y}; se excluye \texttt{expediente\_id} y se usan como predictores el resto de columnas.
 \item Leer \texttt{artifacts} en la respuesta JSON. Las rutas son relativas al directorio del proyecto y están agrupadas bajo \texttt{runs/<reference>/}.
 \end{enumerate}
@@ -121,8 +144,38 @@ Authorization: Bearer <token>
 Body: form-data
   reference = terrazas_madrid_demo
   degree    = 2
-  file      = ejemplos/datos_ejemplo.csv (1.000 filas, x=índice de complejidad, y=días simulados)
+  file      = ejemplos/datos_ejemplo_xy.csv (columnas x,y)
 \end{lstlisting}
+
+\subsection{Solicitud de búsqueda polinómica}
+La ruta JSON y la ruta de archivo comparten el endpoint \texttt{/api/v1/regresion/polinomica/randomizedsearch}. La diferencia está en el formato de la petición:
+\begin{lstlisting}
+# JSON: enviar puntos directamente en el cuerpo
+POST /api/v1/regresion/polinomica/randomizedsearch
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "reference": "busqueda_demo",
+  "n_iter": 20,
+  "cv": 5,
+  "random_state": 42,
+  "data": [
+    {"x": 0, "y": 1}, {"x": 1, "y": 2}, {"x": 2, "y": 5},
+    {"x": 3, "y": 10}, {"x": 4, "y": 17}, {"x": 5, "y": 26},
+    {"x": 6, "y": 37}, {"x": 7, "y": 50}, {"x": 8, "y": 65},
+    {"x": 9, "y": 82}
+  ]
+}
+
+# CSV: en Postman elegir Body > form-data y adjuntar el fichero
+reference   = busqueda_csv_demo
+n_iter      = 20
+cv          = 5
+random_state = 42
+file        = ejemplos/datos_ejemplo_xy.csv
+\end{lstlisting}
+El CSV debe tener los encabezados \texttt{x,y}. Si se usa el campo opcional \texttt{w}, se envía una lista JSON de pesos con tantos valores como filas tenga \texttt{data}; por ejemplo, \texttt{[1,1,0.5,...]}. Para JSON es un array normal; en multipart se escribe como texto con formato JSON.
 
 \subsection{Entrenamiento Random Forest}
 La ruta de demostración lee el CSV local \texttt{ejemplos/datos\_ejemplo\_complejo.csv} (1.000 filas sintéticas) y la ruta multipart admite otro CSV. Ambas requieren Bearer y guardan CSV de entrada, predicciones, gráfica, modelo \texttt{.pkt} y log en el mismo árbol \texttt{runs/<referencia>/}.
@@ -144,12 +197,12 @@ Content-Type: application/json
 La ruta \texttt{/api/v1/random-forest/csv} acepta \texttt{multipart/form-data}: \texttt{reference}, \texttt{file} y, opcionalmente, \texttt{target}, \texttt{n\_estimators}, \texttt{max\_depth}, \texttt{test\_size} y \texttt{random\_state}. Se imputan valores ausentes por mediana en variables numéricas y por moda en categóricas; estas últimas se codifican con one-hot encoding. El identificador de expediente no se usa como predictor. La división aleatoria fija una semilla y separa train/test; las métricas se calculan únicamente en test. La respuesta incluye $R^2$, RMSE, MAE e importancia de las 15 variables transformadas más relevantes. Los datos del ejemplo son sintéticos y las métricas no describen el rendimiento real de la tramitación municipal.
 
 \section{Respuesta y archivos}
-La respuesta polinómica incluye grado, coeficientes y métricas. La respuesta Random Forest incluye parámetros, columnas predictoras, métricas, las 15 importancias principales y rutas de artefactos. En ambos casos HTTP 200 incluye \texttt{reference} y \texttt{run\_id}. El archivo \texttt{modelos/<run\_id>\_modelo.pkt} contiene el objeto entrenado y se puede recargar con \texttt{PolynomialRegressor.load(ruta)} para llamar a \texttt{predict(x)}. El CSV de salida contiene \texttt{x,y\_observado,y\_predicho,residuo}. La gráfica muestra datos observados y curva ajustada. Los logs por ejecución incluyen usuario autenticado, IP y huella del token. Además, \texttt{runs/\_auditoria/api\_audit.jsonl} registra cada petición (incluidos health y errores) con fecha UTC, método, ruta y estado. Se registra una huella truncada del token, nunca su valor Bearer completo. La IP procede de \texttt{REMOTE\_ADDR}; detrás de un proxy inverso será la dirección del proxy si no se configura confianza explícita para proxies conocidos. Establece una política de acceso y retención para estos logs, ya que contienen identificadores de usuario e IP.
+La respuesta polinómica directa incluye grado, coeficientes y métricas. La búsqueda polinómica también devuelve los mejores parámetros encontrados, RMSE de validación cruzada y métricas sobre el conjunto de prueba; su archivo \texttt{<run\_id>\_randomized\_search.pkt} contiene el mejor pipeline. La respuesta Random Forest incluye parámetros, columnas predictoras, métricas, las 15 importancias principales y rutas de artefactos. Todas las respuestas correctas incluyen \texttt{reference}, \texttt{run\_id} y \texttt{artifacts}. El archivo polinómico directo \texttt{<run\_id>\_modelo.pkt} se puede recargar con \texttt{PolynomialRegressor.load(ruta)} para llamar a \texttt{predict(x)}; los pickles de búsqueda y Random Forest guardan pipelines de scikit-learn. Los CSV de predicciones contienen observación, predicción y residuo; las gráficas muestran el ajuste. Los logs por ejecución registran parámetros, métricas e identidad auditada. Además, \texttt{runs/\_auditoria/api\_audit.jsonl} registra las peticiones HTTP, su ruta, estado, usuario, IP y huella truncada del token.
 
 El formato \texttt{.pkt} de este ejemplo utiliza serialización Python pickle. Solo se deben cargar archivos generados localmente y de confianza: pickle puede ejecutar código al cargar un fichero manipulado. Para intercambio entre sistemas, conviene guardar los coeficientes y metadatos en JSON en vez de cargar pickles externos.
 
 \section{Validaciones y límites del ejemplo}
-La API limita tamaño de petición y filas CSV. Para polinomios valida grado, finitud y valores $x$ distintos; para Random Forest limita hiperparámetros, exige una columna objetivo numérica y al menos 10 filas válidas. Responde HTTP 400 ante entrada no válida, 401 ante credenciales o token no válidos, 413 ante contenido demasiado grande y 422 cuando no se puede ajustar el modelo. Los tokens firmados caducan; la ruta de salud permanece pública y todas las rutas de entrenamiento requieren Bearer. Para un despliegue real se deben usar HTTPS, almacenar credenciales en un gestor de secretos, limitar intentos de autenticación y añadir políticas de autorización, retención y observabilidad apropiadas.
+La API limita el cuerpo HTTP a 5 MB, los archivos CSV a 4 MB y las entradas a 100.000 filas. Valida referencia, formato, finitud y parámetros; la búsqueda polinómica limita \texttt{n\_iter} a 1--80, \texttt{cv} a 2--10 y exige que haya datos suficientes tras separar el conjunto de prueba. Responde HTTP 400 ante entrada no válida, 401 ante credenciales o token no válidos, 413 ante contenido demasiado grande y 422 cuando el ajuste no se puede completar. La ruta de salud es pública y las rutas de entrenamiento requieren Bearer.
 
 \section{Notas sobre interpretación}
 Random Forest no extrapola tendencias fuera del rango de entrenamiento de forma lineal y sus importancias no implican causalidad. La evaluación usa una partición aleatoria; no modela autocorrelación geográfica ni temporal.
@@ -175,6 +228,7 @@ from functools import wraps
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 from flask import Flask, g, jsonify, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -182,7 +236,7 @@ from dotenv import load_dotenv
 
 from api_functions import (
     parse_csv, parse_json_points, random_forest_options, run_model,
-    run_random_forest, validate_reference,
+    run_random_forest, run_polynomial_search, validate_reference,
 )
 
 
@@ -194,8 +248,6 @@ load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 # se haya lanzado Flask. Esto evita que un cambio de working directory disperse
 # artefactos de una misma ejecución.
 OUTPUT_ROOT = Path(__file__).resolve().parent / "runs"
-# reference forma parte de una ruta de disco: la lista permitida impide `../`,
-# separadores y caracteres que puedan escapar o crear rutas ambiguas.
 # Diccionario didáctico usuario -> contraseña. Las contraseñas se leen del entorno
 # y no se escriben en el repositorio. Añade aquí más pares para otros usuarios.
 USERS = {
@@ -392,6 +444,81 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
             return jsonify(error=f"CSV no válido: {exc}"), 400
         return run_model(app, output_root, reference, degree, x, y, "csv", raw_csv=raw)
 
+    @app.post("/api/v1/regresion/polinomica/randomizedsearch")
+    @require_token
+    def fit_polynomial_randomized_search():
+        """Recibe datos JSON o CSV y busca la mejor configuración polinómica."""
+        raw_csv = None
+        # El mismo endpoint admite dos formatos: JSON lleva una lista de puntos;
+        # multipart/form-data lleva los parámetros en form y el archivo en file.
+        if request.is_json:
+            source = request.get_json(silent=True)
+            if not isinstance(source, dict):
+                return jsonify(error="El cuerpo debe ser un objeto JSON."), 400
+            try:
+                x, y = parse_json_points(source.get("data"))
+            except ValueError as exc:
+                return jsonify(error=str(exc)), 400
+        else:
+            source = request.form
+            uploaded = request.files.get("file")
+            if uploaded is None or not uploaded.filename:
+                return jsonify(error="Falta el archivo CSV en el campo multipart 'file'."), 400
+            raw_csv = uploaded.read()
+            if len(raw_csv) > 4 * 1024 * 1024:
+                return jsonify(error="El CSV supera el límite de 4 MB."), 413
+            try:
+                x, y = parse_csv(raw_csv.decode("utf-8-sig"))
+            except (UnicodeDecodeError, ValueError) as exc:
+                return jsonify(error=f"CSV no válido: {exc}"), 400
+
+        reference, error = validate_reference(source.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+
+        def parse_integer(name, default, minimum, maximum):
+            # Los números JSON llegan como int; los campos de un formulario llegan
+            # como texto. Convertimos ambos formatos y después aplicamos el límite.
+            raw = source.get(name, default)
+            try:
+                if isinstance(raw, bool) or (isinstance(raw, str) and not raw.strip()):
+                    raise ValueError
+                parsed = int(raw)
+                if isinstance(raw, float) and raw != parsed:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.") from None
+            if not minimum <= parsed <= maximum:
+                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.")
+            return parsed
+
+        try:
+            n_iter = parse_integer("n_iter", 20, 1, 80)
+            cv = parse_integer("cv", 5, 2, 10)
+            random_state = parse_integer("random_state", 42, 0, 2**32 - 1)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        if cv >= int(len(x) * 0.8):
+            return jsonify(error="cv debe ser menor que el número de observaciones de entrenamiento (80% de data)."), 400
+        # Los pesos siguen el mismo orden que las filas de entrada. El ejecutor
+        # recorta este vector junto con los datos en cada partición train/test.
+        weights = source.get("w")
+        if weights is not None:
+            if isinstance(weights, str):
+                try:
+                    weights = json.loads(weights)
+                except json.JSONDecodeError:
+                    return jsonify(error="w debe ser una lista JSON de pesos numéricos."), 400
+            try:
+                weights = np.asarray(weights, dtype=float)
+            except (TypeError, ValueError):
+                return jsonify(error="w debe ser una lista numérica con un peso por observación."), 400
+            if weights.ndim != 1 or len(weights) != len(x) or not np.isfinite(weights).all() or np.any(weights < 0):
+                return jsonify(error="w debe contener pesos finitos no negativos, uno por observación."), 400
+        options = {"n_iter": n_iter, "cv": cv, "random_state": random_state}
+        return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv)
+    
+    
     @app.post("/api/v1/random-forest/terrazas")
     @require_token
     def fit_random_forest_terraces():
@@ -469,11 +596,12 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
-
+from sklearn.model_selection import train_test_split
+import json
 import numpy as np
 from flask import g, jsonify
 
-from regression.polynomial_regressor import PolynomialRegressor
+from regression.polynomial_regressor import PolynomialRegressor,build_polynomial_search
 from regression.random_forest_regressor import RandomForestRegressorModel
 
 # Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
@@ -665,6 +793,8 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
             # Guardar bytes originales preserva columnas extra, orden, formato y
             # encabezados exactamente como los envió el cliente.
             input_path.write_bytes(raw_csv)
+        
+        
         X_train, X_test, y_train, y_test = train_test_split(
             x, y, test_size=0.20, random_state=42
         )
@@ -708,6 +838,384 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
         # servicio prolongado y permite leer/archivar el log al terminar la petición.
         handler.close()
         logger.removeHandler(handler)
+
+
+def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None):
+    """Separa los datos, busca el modelo y guarda sus resultados para la API."""
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from sklearn.model_selection import train_test_split
+    import pickle
+    import matplotlib.pyplot as plt
+
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
+    base = Path(output_root) / reference
+    folders = {name: base / name for name in ("graficas", "csv_entrada", "logs_salida", "csv_salida", "modelos")}
+    for folder in folders.values():
+        folder.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger(f"polynomial_search.{reference}.{run_id}")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(folders["logs_salida"] / f"{run_id}.log", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        source_kind = "csv" if raw_csv is not None else "json"
+        logger.info("RandomizedSearchCV user=%s client_ip=%s source=%s",
+                    getattr(g, "authenticated_user", None) or "anonymous",
+                    getattr(g, "client_ip", None) or "unknown", source_kind)
+        input_path = folders["csv_entrada"] / f"{run_id}.csv"
+        if raw_csv is not None:
+            input_path.write_bytes(raw_csv)
+        else:
+            with input_path.open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.writer(stream)
+                writer.writerow(["x", "y"])
+                writer.writerows(zip(x.tolist(), y.tolist()))
+
+        # Apartamos un 20% para medir el rendimiento final. RandomizedSearchCV
+        # solo ve el 80% restante, así la prueba no influye en la selección.
+        indices = np.arange(len(x))
+        train_idx, test_idx = train_test_split(
+            indices, test_size=0.2, random_state=options["random_state"]
+        )
+        # El pipeline prueba combinaciones usando validación cruzada dentro del
+        # conjunto de entrenamiento y vuelve a ajustar la ganadora (refit=True).
+        search = build_polynomial_search(
+            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"]
+        )
+        X_train = x[train_idx].reshape(-1, 1)
+        X_test = x[test_idx].reshape(-1, 1)
+        fit_kwargs = {}
+        if weights is not None:
+            # Pipeline necesita el prefijo del paso para enviar los pesos al modelo.
+            fit_kwargs["polynomial__sample_weight"] = weights[train_idx]
+        search.fit(X_train, y[train_idx], **fit_kwargs)
+        # La evaluación se calcula con datos que no participaron en la búsqueda.
+        predicted = search.best_estimator_.predict(X_test)
+        observed = y[test_idx]
+        residuals = observed - predicted
+        metrics = {
+            "r2": float(r2_score(observed, predicted)),
+            "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
+            "mae": float(mean_absolute_error(observed, predicted)),
+        }
+        csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
+        np.savetxt(csv_path, np.column_stack((x[test_idx], observed, predicted, residuals)),
+                   delimiter=",", header="x,y_observado,y_predicho,residuo", comments="", fmt="%.10g")
+        graph_path = folders["graficas"] / f"{run_id}_randomized_search.png"
+        order = np.argsort(x[test_idx])
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        ax.scatter(x[test_idx], observed, label="Observaciones", color="#1f77b4", alpha=0.85)
+        ax.plot(x[test_idx][order], predicted[order], label="Mejor ajuste", color="#d62728")
+        ax.set(title="Regresión polinómica optimizada", xlabel="x", ylabel="y")
+        ax.grid(True, alpha=0.25)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(graph_path, dpi=160)
+        plt.close(fig)
+        model_path = folders["modelos"] / f"{run_id}_randomized_search.pkt"
+        with model_path.open("wb") as stream:
+            pickle.dump(search.best_estimator_, stream, protocol=pickle.HIGHEST_PROTOCOL)
+        metadata = {
+            "reference": reference,
+            "run_id": run_id,
+            "algorithm": "PolynomialRegressionRandomizedSearchCV",
+            "best_parameters": search.best_params_,
+            "best_cv_rmse": float(np.sqrt(-search.best_score_)),
+            "metrics": metrics,
+            "n_rows_input": int(len(x)),
+            "n_rows_train": int(len(train_idx)),
+            "n_rows_test": int(len(test_idx)),
+            "artifacts": {
+                "input_csv": str(input_path.relative_to(output_root)),
+                "output_csv": str(csv_path.relative_to(output_root)),
+                "graph_png": str(graph_path.relative_to(output_root)),
+                "trained_model_pkt": str(model_path.relative_to(output_root)),
+                "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
+            },
+        }
+        best_estimator_params = search.best_estimator_.named_steps["polynomial"].get_params(deep=False)
+        logger.info(
+            "RandomizedSearchCV completado param_distributions=%s best_estimator_params=%s best=%s metrics=%s",
+            json.dumps(search.param_distributions, sort_keys=True, default=str),
+            json.dumps(best_estimator_params, sort_keys=True, default=str),
+            search.best_params_, metrics,
+        )
+        return jsonify(metadata), 200
+    except (ValueError, np.linalg.LinAlgError) as exc:
+        logger.exception("No se pudo entrenar RandomizedSearchCV: %s", exc)
+        return jsonify(error=f"No se pudo entrenar el modelo: {exc}", reference=reference, run_id=run_id), 422
+    except Exception:
+        logger.exception("Error interno en RandomizedSearchCV")
+        return jsonify(error="Error interno durante la búsqueda del modelo.", reference=reference, run_id=run_id), 500
+    finally:
+        handler.close()
+        logger.removeHandler(handler)
+\end{lstlisting}
+
+\section{Clase de regresión polinómica}
+Este listado muestra el estimador clásico y su adaptador para el pipeline de búsqueda. Los comentarios del código explican el papel de cada paso.
+\begin{lstlisting}[language=Python,caption={Código de regression/polynomial\_regressor.py}]
+"""Clase de regresión polinómica y generación de artefactos."""
+from dataclasses import dataclass
+import pickle
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.pipeline import Pipeline
+
+
+
+
+
+@dataclass
+class FitResult:
+    coefficients: np.ndarray
+    x: np.ndarray
+    predicted: np.ndarray
+    residuals: np.ndarray
+    metrics: dict
+    rank: int | None = None
+    singular_values: np.ndarray | None = None
+    rcond: float | None = None
+    covariance: np.ndarray | None = None
+    fit_residuals: np.ndarray | None = None
+
+
+class PolynomialRegressor:
+    """Ajusta un polinomio por mínimos cuadrados usando numpy."""
+
+    def __init__(self, X_train, X_test, y_train, y_test,degree: int = 2):
+        if isinstance(degree, bool) or not isinstance(degree, int) or not 1 <= degree <= 10:
+            raise ValueError("degree debe estar entre 1 y 10.")
+        self.degree = degree
+        self.coefficients_ = None
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
+
+    def fit(self, rcond=None, full: bool = False, w=None, cov=False) -> FitResult:
+        """Ajusta el polinomio; los argumentos siguen las opciones de ``numpy.polyfit``.
+
+        ``full=True`` incluye rango, valores singulares y residuos del ajuste en
+        FitResult. ``cov`` puede ser True (covarianza escalada) o ``'unscaled'``.
+        """
+        if not isinstance(full, (bool, np.bool_)):
+            raise TypeError("full debe ser booleano.")
+        if not (isinstance(cov, (bool, np.bool_)) or (isinstance(cov, str) and cov == "unscaled")):
+            raise ValueError("cov debe ser False, True o 'unscaled'.")
+        cov = "unscaled" if isinstance(cov, str) else bool(cov)
+        # Convertimos a arrays numéricos una sola vez. x/y de train aprenden los
+        # coeficientes; x/y de test se reservan para medir el ajuste.
+        x = np.asarray(self.X_train, dtype=float)
+        y = np.asarray(self.y_train, dtype=float)
+        x_t = np.asarray(self.X_test, dtype=float)
+        y_t = np.asarray(self.y_test, dtype=float)
+        if x.ndim != 1 or y.ndim != 1 or len(x) != len(y):
+            raise ValueError("x e y deben ser vectores de igual longitud.")
+        # Para grado d se requieren al menos d+1 observaciones y d+1 valores x
+        # distintos; de lo contrario el problema está subdeterminado.
+        if len(x) <= self.degree:
+            raise ValueError("Se necesitan más observaciones que el grado del polinomio.")
+        if not np.isfinite(x).all() or not np.isfinite(y).all():
+            raise ValueError("Los datos deben ser finitos.")
+        if np.unique(x).size <= self.degree:
+            raise ValueError("Se necesitan más valores x distintos que el grado del polinomio.")
+        weights = None if w is None else np.asarray(w, dtype=float)
+        if weights is not None and (weights.ndim != 1 or len(weights) != len(x)):
+            raise ValueError("w debe ser un vector con un peso por observación de entrenamiento.")
+        if weights is not None and (not np.isfinite(weights).all() or np.any(weights < 0)):
+            raise ValueError("w debe contener pesos finitos no negativos.")
+        if rcond is not None:
+            if isinstance(rcond, bool) or not np.isscalar(rcond):
+                raise ValueError("rcond debe ser un número finito no negativo o None.")
+            try:
+                rcond = float(rcond)
+            except (TypeError, ValueError):
+                raise ValueError("rcond debe ser un número finito no negativo o None.") from None
+            if not np.isfinite(rcond) or rcond < 0:
+                raise ValueError("rcond debe ser un número finito no negativo o None.")
+        # polyfit calcula los coeficientes. w pondera los residuos; full pide
+        # diagnósticos SVD y cov pide la incertidumbre de los coeficientes.
+        fitted = np.polyfit(x, y, self.degree, rcond=rcond, full=bool(full), w=weights, cov=cov)
+        if full:
+            coefficients, fit_residuals, rank, singular_values, used_rcond = fitted
+            covariance = None
+        elif cov is not False:
+            coefficients, covariance = fitted
+            fit_residuals = np.array([], dtype=float)
+            rank = None
+            singular_values = None
+            used_rcond = rcond
+        else:
+            coefficients = fitted
+            covariance = None
+            fit_residuals = np.array([], dtype=float)
+            rank = None
+            singular_values = None
+            used_rcond = rcond
+        self.coefficients_ = coefficients.copy()
+        # Evaluamos con X_test, que no se usó para calcular los coeficientes.
+        predicted = np.polyval(coefficients, x_t)
+        # El residuo es el valor real menos la predicción para cada fila.
+        residuals = y_t - predicted
+        # R² no está definido si y es constante. En el caso perfecto se informa 1;
+        # si no lo es, se informa 0 como valor neutro y se conserva RMSE/MAE.
+        ss_res = float(np.sum(residuals ** 2))
+        ss_tot = float(np.sum((y_t - np.mean(y_t)) ** 2))
+        r2 = 1.0 if ss_tot == 0 and ss_res == 0 else (0.0 if ss_tot == 0 else 1 - ss_res / ss_tot)
+        metrics = {
+            "r2": float(r2),
+            "rmse": float(np.sqrt(np.mean(residuals ** 2))),
+            "mae": float(np.mean(np.abs(residuals))),
+        }
+        return FitResult(np.asarray(coefficients), x_t.copy(), np.asarray(predicted), residuals, metrics,
+                         rank, np.asarray(singular_values) if singular_values is not None else None,
+                         float(used_rcond) if used_rcond is not None else None,
+                         np.asarray(covariance) if covariance is not None else None,
+                         np.asarray(fit_residuals) if full else None)
+
+    def predict(self, x):
+        """Predice con un modelo ya entrenado; x puede ser escalar o vector."""
+        if self.coefficients_ is None:
+            raise ValueError("El modelo aún no está entrenado.")
+        values = np.asarray(x, dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError("x debe contener valores finitos.")
+        # Los coeficientes se guardan en orden descendente, que es el convenio
+        # esperado por polyval: a_n*x^n + ... + a_1*x + a_0.
+        return np.polyval(self.coefficients_, values)
+
+    def save(self, path: Path):
+        """Serializa el modelo entrenado como pickle con extensión .pkt.
+
+        Cargar archivos pickle únicamente si proceden de una fuente confiable.
+        """
+        if self.coefficients_ is None:
+            raise ValueError("No se puede guardar un modelo sin entrenar.")
+        path = Path(path)
+        # Pickle conserva el objeto Python entrenado y sus coeficientes. El archivo
+        # solo debe cargarse desde un origen confiable; pickle no es un formato
+        # seguro para modelos recibidos de usuarios o servicios externos.
+        with path.open("wb") as stream:
+            pickle.dump(self, stream, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @classmethod
+    def load(cls, path: Path):
+        """Carga un .pkt creado por esta clase. No cargar archivos no confiables."""
+        # Un pickle puede ejecutar código durante unpickle: validar el tipo después
+        # no neutraliza un archivo malicioso, por eso el origen debe ser confiable.
+        with Path(path).open("rb") as stream:
+            model = pickle.load(stream)
+        if not isinstance(model, cls) or model.coefficients_ is None:
+            raise ValueError("El archivo no contiene un modelo PolynomialRegressor entrenado.")
+        return model
+
+    @staticmethod
+    def write_predictions(path: Path, result: FitResult):
+        path = Path(path)
+        # La salida conserva observación, predicción y residuo fila a fila para que
+        # el usuario pueda revisar errores y no solo el resumen agregado del modelo.
+        values = np.column_stack((result.x, result.predicted + result.residuals, result.predicted, result.residuals))
+        np.savetxt(path, values, delimiter=",", header="x,y_observado,y_predicho,residuo", comments="", fmt="%.10g")
+
+    def write_plot(self, path: Path, x, y, result: FitResult):
+        path = Path(path)
+        # Ordenar solo para dibujar la curva evita segmentos zigzagueantes cuando
+        # las observaciones llegan desordenadas; el ajuste usa todas las filas.
+        order = np.argsort(x)
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        ax.scatter(x, y, label="Observaciones", color="#1f77b4", alpha=0.85)
+        ax.plot(np.asarray(x)[order], result.predicted[order], label=f"Ajuste polinómico (grado {self.degree})", color="#d62728")
+        ax.set(title="Regresión polinómica", xlabel="x", ylabel="y")
+        ax.grid(True, alpha=0.25)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(path, dpi=160)
+        plt.close(fig)
+
+
+class PolynomialSearchEstimator(RegressorMixin, BaseEstimator):
+    """Adaptador para que la clase NumPy se pueda usar en Pipeline y CV.
+
+    scikit-learn llama a fit(X, y) en cada pliegue y a predict(X) para puntuarlo.
+    Este adaptador convierte la columna X al formato que espera PolynomialRegressor.
+    """
+
+    def __init__(self, degree=2, rcond=None, full=False, w=None, cov=False):
+        self.degree = degree
+        self.rcond = rcond
+        self.full = full
+        self.w = w
+        self.cov = cov
+
+    def fit(self, X, y, sample_weight=None):
+        # Un polinomio de esta práctica tiene un único predictor, x. sklearn lo
+        # entrega como matriz (filas, columnas); la clase base usa un vector.
+        x = np.asarray(X, dtype=float)
+        if x.ndim == 2 and x.shape[1] == 1:
+            x = x[:, 0]
+        if x.ndim != 1:
+            raise ValueError("PolynomialSearchEstimator acepta exactamente una columna X.")
+        # sample_weight se recorta automáticamente por RandomizedSearchCV para
+        # cada pliegue. self.w queda como opción para un ajuste sin validación.
+        weights = sample_weight if sample_weight is not None else self.w
+        self.regressor_ = PolynomialRegressor(x, x, y, y, degree=self.degree)
+        self.fit_result_ = self.regressor_.fit(
+            rcond=self.rcond, full=self.full, w=weights, cov=self.cov
+        )
+        self.coef_ = self.regressor_.coefficients_
+        self.n_features_in_ = 1
+        return self
+
+    def predict(self, X):
+        if not hasattr(self, "regressor_"):
+            raise ValueError("El estimador aún no está entrenado.")
+        x = np.asarray(X, dtype=float)
+        if x.ndim == 2 and x.shape[1] == 1:
+            x = x[:, 0]
+        if x.ndim != 1:
+            raise ValueError("PolynomialSearchEstimator acepta exactamente una columna X.")
+        return self.regressor_.predict(x)
+
+
+# RandomizedSearchCV elige valores de estas listas para el paso `polynomial`.
+# Los nombres llevan `polynomial__` porque ése es el nombre del paso del Pipeline.
+# `w` se deja en None porque una matriz de pesos de tamaño fijo no es válida al
+# cambiar los pliegues CV; pase los pesos reales a search.fit como sample_weight.
+POLYNOMIAL_PARAM_DISTRIBUTIONS = {
+    # Cada lista da las opciones que RandomizedSearchCV puede probar.
+    "polynomial__degree": [1, 2, 3, 4, 5],
+    # rcond ajusta qué valores singulares pequeños se descartan.
+    "polynomial__rcond": [None, 1e-12, 1e-10, 1e-8],
+    # full y cov solicitan información diagnóstica del ajuste.
+    "polynomial__full": [False, True],
+    # Una lista w fija no sirve en pliegues de tamaños distintos; use sample_weight.
+    "polynomial__w": [None],
+    "polynomial__cov": [False,  "unscaled"],
+}
+
+
+def build_polynomial_search(n_iter=20, cv=5, random_state=42, param_distributions=None):
+    """Construye la búsqueda reproducible para una variable x."""
+    # Pipeline reúne el estimador bajo un nombre estable para que sus parámetros
+    # puedan escribirse en el diccionario de búsqueda con el prefijo `polynomial__`.
+    pipeline = Pipeline([("polynomial", PolynomialSearchEstimator())])
+    return RandomizedSearchCV(
+        estimator=pipeline,
+        param_distributions=(param_distributions if param_distributions is not None
+                             else POLYNOMIAL_PARAM_DISTRIBUTIONS),
+        n_iter=n_iter,
+        cv=cv,
+        random_state=random_state,
+        scoring="neg_mean_squared_error",
+        refit=True,
+    )
 \end{lstlisting}
 
 \section{Clase de Random Forest}
@@ -762,6 +1270,7 @@ class RandomForestRegressorModel:
         self.random_state = random_state
 
     def fit(self, frame: pd.DataFrame, target: str = "y") -> RandomForestResult:
+        # Primero se separa la columna que queremos predecir del resto de la tabla.
         if target not in frame.columns:
             raise ValueError(f"No existe la columna objetivo '{target}'.")
         # El ID solo enlaza resultados con expedientes; excluirlo evita memorizar claves.
@@ -777,7 +1286,8 @@ class RandomForestRegressorModel:
             raise ValueError("Se requieren al menos 10 filas con objetivo numérico para entrenar y evaluar.")
         X = data[feature_columns].copy()
         y = data[target].astype(float)
-        # Las columnas textuales enteramente numéricas pasan a continuas; las demás son categorías.
+        # El texto que solo contiene números se convierte a número; el resto se
+        # tratará como categoría, por ejemplo el tipo de procedimiento.
         for column in feature_columns:
             if X[column].dtype == object:
                 converted = pd.to_numeric(X[column], errors="coerce")
@@ -786,6 +1296,7 @@ class RandomForestRegressorModel:
                     X[column] = converted
         numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
         categorical_columns = [col for col in feature_columns if col not in numeric_columns]
+        # Cada grupo de columnas necesita su propio tratamiento de valores ausentes.
         transformers = []
         if numeric_columns:
             transformers.append(("numeric", Pipeline([("imputer", SimpleImputer(strategy="median"))]), numeric_columns))
@@ -794,6 +1305,8 @@ class RandomForestRegressorModel:
                 ("imputer", SimpleImputer(strategy="most_frequent")),
                 ("onehot", OneHotEncoder(handle_unknown="ignore")),
             ]), categorical_columns))
+        # Pipeline repite automáticamente el mismo preprocesamiento al entrenar y
+        # predecir, antes de ejecutar RandomForestRegressor.
         pipeline = Pipeline([
             ("preprocess", ColumnTransformer(transformers=transformers, remainder="drop")),
             ("random_forest", RandomForestRegressor(
@@ -801,6 +1314,8 @@ class RandomForestRegressorModel:
                 random_state=self.random_state, n_jobs=-1,
             )),
         ])
+        # Reservamos filas de prueba que no participan en el entrenamiento; las
+        # métricas posteriores estiman cómo funciona el modelo con datos nuevos.
         indices = np.arange(len(y))
         train_idx, test_idx = train_test_split(indices, test_size=self.test_size, random_state=self.random_state)
         pipeline.fit(X.iloc[train_idx], y.iloc[train_idx])
@@ -815,6 +1330,8 @@ class RandomForestRegressorModel:
         predictions = pd.DataFrame({"y_observado": observed, "y_predicho": predicted, "residuo": residuals})
         if id_column:
             predictions.insert(0, id_column, data[id_column].iloc[test_idx].to_numpy())
+        # One-hot encoding puede expandir una categoría a varias columnas; usamos
+        # los nombres transformados para etiquetar la importancia del bosque.
         names = pipeline.named_steps["preprocess"].get_feature_names_out()
         scores = pipeline.named_steps["random_forest"].feature_importances_
         importance = [{"feature": str(name), "importance": float(score)} for name, score in
