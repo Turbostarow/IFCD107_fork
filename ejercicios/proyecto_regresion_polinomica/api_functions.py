@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+from sklearn.model_selection import train_test_split
 
 import numpy as np
 from flask import g, jsonify
@@ -204,6 +205,8 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
             # Guardar bytes originales preserva columnas extra, orden, formato y
             # encabezados exactamente como los envió el cliente.
             input_path.write_bytes(raw_csv)
+        
+        
         X_train, X_test, y_train, y_test = train_test_split(
             x, y, test_size=0.20, random_state=42
         )
