@@ -22,20 +22,22 @@
 \maketitle
 \thispagestyle{fancy}
 \begin{abstract}
-Este proyecto ofrece una API REST en Flask para ajustar una regresión polinómica por mínimos cuadrados. La capa HTTP valida la solicitud y organiza las ejecuciones por referencia; la clase \texttt{PolynomialRegressor} encapsula el algoritmo y la generación de predicciones y gráficas. Se incluyen solicitudes de Postman para JSON y carga de CSV.
+Este proyecto ofrece una API REST Flask con regresión polinómica y Random Forest. La capa HTTP valida solicitudes y organiza ejecuciones por referencia; clases separadas encapsulan el entrenamiento y los artefactos. La colección Postman incluye ejemplos JSON y CSV.
 \end{abstract}
 
 \section{Descripción de la solución}
-La aplicación recibe observaciones $(x,y)$ y un grado polinómico de 1 a 10. El ejemplo de dominio representa la gestión de expedientes de terrazas: $x$ es un índice didáctico de complejidad y $y$ son días de tramitación simulados. El conjunto de 1.000 filas es sintético, no contiene expedientes reales ni reproduce estadísticas o plazos del Ayuntamiento de Madrid. La clase de regresión ajusta el modelo usando \texttt{numpy.polynomial.Polynomial.fit}, calcula predicciones, residuos y métricas $R^2$, RMSE y MAE. La API guarda datos de entrada, CSV de predicciones, gráfico, modelo entrenado y log por ejecución.
+La aplicación ofrece dos algoritmos: regresión polinómica sobre pares $(x,y)$ y Random Forest para regresión tabular con variables numéricas y categóricas. El ejemplo de dominio representa la gestión de expedientes de terrazas: $x$ es un índice didáctico de complejidad y $y$ son días de tramitación simulados. El conjunto de 1.000 filas es sintético, no contiene expedientes reales ni reproduce estadísticas o plazos del Ayuntamiento de Madrid. La clase de regresión polinómica ajusta el modelo usando \texttt{numpy.polynomial.Polynomial.fit}, calcula predicciones, residuos y métricas $R^2$, RMSE y MAE. La API guarda datos de entrada, CSV de predicciones, gráfico, modelo entrenado y log por ejecución.
 
 \begin{center}
 \begin{tabular}{ll}\toprule
 Componente & Responsabilidad\\\midrule
 \texttt{app.py} & Endpoints HTTP, validación, carpetas, persistencia y respuesta JSON.\\
 \texttt{regression/polynomial\_regressor.py} & Ajuste matemático, métricas, CSV de salida y gráfica.\\
+\texttt{regression/random\_forest\_regressor.py} & Preprocesamiento mixto, entrenamiento RF e importancia de variables.\\
 \texttt{scripts/generate\_terrace\_cases.py} & Generador determinista de las 1.000 filas sintéticas.\\
 \texttt{ejemplos/datos\_ejemplo.csv} & Expedientes demostrativos con contexto y campos $x,y$.\\
-\texttt{postman/} & Colección importable con health, solicitud JSON y carga de CSV.\\
+\texttt{ejemplos/datos\_ejemplo\_complejo.csv} & Datos tabulares sintéticos para Random Forest.\\
+\texttt{postman/} & Colección importable con health, autenticación Bearer, solicitudes JSON/CSV de ambos algoritmos.\\
 \texttt{runs/} & Artefactos generados, separados por referencia y ejecución.\\\bottomrule
 \end{tabular}
 \end{center}
@@ -44,8 +46,11 @@ Componente & Responsabilidad\\\midrule
 \begin{lstlisting}
 proyecto_regresion_polinomica/
   app.py
+  api_functions.py
   regression/polynomial_regressor.py
+  regression/random_forest_regressor.py
   ejemplos/datos_ejemplo.csv
+  ejemplos/datos_ejemplo_complejo.csv
   postman/Regresion_Polinomica.postman_collection.json
   documentacion/guia_proyecto.tex
   runs/<referencia>/
@@ -65,23 +70,38 @@ python -m venv .venv
 Activar el entorno: en Windows PowerShell, \texttt{.venv\\Scripts\\Activate.ps1}; en macOS/Linux, \texttt{source .venv/bin/activate}. Después:
 \begin{lstlisting}
 python -m pip install -r requirements.txt
-python app.py
 \end{lstlisting}
-La API queda disponible localmente en \url{http://127.0.0.1:5000}. Para comprobar disponibilidad, abrir \url{http://127.0.0.1:5000/api/v1/health}; la respuesta esperada es JSON con \texttt{"status":"ok"}.
+La API carga automáticamente las variables del archivo local \texttt{.env} al arrancar. En esta copia se incluye un \texttt{.env} local con una contraseña aleatoria para el usuario \texttt{admin} y un secreto de firma. Los valores no se reproducen en esta guía. Para otro entorno, copia \texttt{.env.example} a \texttt{.env} y configura credenciales propias. El archivo \texttt{.env} está excluido de Git y del ZIP distribuible. Copia el valor \texttt{API\_ADMIN\_PASSWORD} a la variable \texttt{password} de Postman. Mantén \texttt{API\_TOKEN\_SECRET} estable entre procesos y reinicios.
+
+La API queda disponible localmente en \url{http://127.0.0.1:5000}. \url{http://127.0.0.1:5000/api/v1/health} es público y devuelve el estado del servicio.
 
 \section{Prueba desde Postman}
 \begin{enumerate}
 \item En Postman, importar \texttt{postman/Regresion\_Polinomica.postman\_collection.json}.
 \item Mantener \texttt{baseUrl=http://127.0.0.1:5000} y usar la referencia \texttt{terrazas\_madrid\_demo}.
-\item Ejecutar primero la petición \textbf{Health}; debe responder HTTP 200.
+\item Configurar las variables de colección \texttt{username=admin} y \texttt{password} con la clave definida en \texttt{API\_ADMIN\_PASSWORD}.
+\item Ejecutar \textbf{Health}; debe responder HTTP 200.
+\item Ejecutar \textbf{Obtener token}. La colección guarda automáticamente el token Bearer recibido. Credenciales incorrectas producen HTTP 401.
 \item Ejecutar \textbf{Ajustar desde JSON}. La colección ya incluye datos sintéticos y grado 2. Postman establece \texttt{Content-Type: application/json}.
 \item Para el caso de terrazas, ejecutar \textbf{Ajustar desde CSV}; en el campo \texttt{file}, seleccionar \texttt{ejemplos/datos\_ejemplo.csv}. El CSV tiene 1.000 filas de datos, campos de referencia sintéticos y encabezados \texttt{x,y}. Postman construye multipart/form-data; no fijar manualmente el encabezado boundary.
+\texttt{ejemplos/datos\_ejemplo\_complejo.csv} & Datos tabulares sintéticos para Random Forest.\\
+\item Ejecutar \textbf{Random Forest - CSV de terrazas incluido} para entrenar sin adjuntar fichero, o \textbf{Random Forest - cargar CSV} y seleccionar \texttt{ejemplos/datos\_ejemplo\_complejo.csv}. El objetivo por defecto es \texttt{y}; se excluye \texttt{expediente\_id} y se usan como predictores el resto de columnas.
 \item Leer \texttt{artifacts} en la respuesta JSON. Las rutas son relativas al directorio del proyecto y están agrupadas bajo \texttt{runs/<reference>/}.
 \end{enumerate}
+
+\subsection{Obtención del token}
+\begin{lstlisting}
+POST /api/v1/auth/token
+Content-Type: application/json
+
+{ "username": "admin", "password": "<clave configurada>" }
+\end{lstlisting}
+La respuesta incluye \texttt{access\_token}, \texttt{token\_type=Bearer} y \texttt{expires\_in}. La duración predeterminada es una hora y se puede cambiar con \texttt{API\_TOKEN\_TTL\_SECONDS}. Los endpoints de entrenamiento requieren el encabezado Bearer; sin token, con token inválido o expirado responden HTTP 401.
 
 \subsection{Solicitud JSON}
 \begin{lstlisting}
 POST /api/v1/regresion/polinomica
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
@@ -97,45 +117,78 @@ Content-Type: application/json
 \subsection{Solicitud CSV}
 \begin{lstlisting}
 POST /api/v1/regresion/polinomica/csv
+Authorization: Bearer <token>
 Body: form-data
   reference = terrazas_madrid_demo
   degree    = 2
   file      = ejemplos/datos_ejemplo.csv (1.000 filas, x=índice de complejidad, y=días simulados)
 \end{lstlisting}
 
+\subsection{Entrenamiento Random Forest}
+La ruta de demostración lee el CSV local \texttt{ejemplos/datos\_ejemplo\_complejo.csv} (1.000 filas sintéticas) y la ruta multipart admite otro CSV. Ambas requieren Bearer y guardan CSV de entrada, predicciones, gráfica, modelo \texttt{.pkt} y log en el mismo árbol \texttt{runs/<referencia>/}.
+
+\begin{lstlisting}
+POST /api/v1/random-forest/terrazas
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "reference": "terrazas_rf_demo",
+  "target": "y",
+  "n_estimators": 200,
+  "max_depth": null,
+  "test_size": 0.2,
+  "random_state": 42
+}
+\end{lstlisting}
+La ruta \texttt{/api/v1/random-forest/csv} acepta \texttt{multipart/form-data}: \texttt{reference}, \texttt{file} y, opcionalmente, \texttt{target}, \texttt{n\_estimators}, \texttt{max\_depth}, \texttt{test\_size} y \texttt{random\_state}. Se imputan valores ausentes por mediana en variables numéricas y por moda en categóricas; estas últimas se codifican con one-hot encoding. El identificador de expediente no se usa como predictor. La división aleatoria fija una semilla y separa train/test; las métricas se calculan únicamente en test. La respuesta incluye $R^2$, RMSE, MAE e importancia de las 15 variables transformadas más relevantes. Los datos del ejemplo son sintéticos y las métricas no describen el rendimiento real de la tramitación municipal.
+
 \section{Respuesta y archivos}
-Una ejecución correcta responde HTTP 200 con \texttt{reference}, \texttt{run\_id}, grado, número de observaciones, coeficientes en orden descendente, métricas y rutas de artefactos. El archivo \texttt{modelos/<run\_id>\_modelo.pkt} contiene el objeto entrenado y se puede recargar con \texttt{PolynomialRegressor.load(ruta)} para llamar a \texttt{predict(x)}. El CSV de salida contiene \texttt{x,y\_observado,y\_predicho,residuo}. La gráfica muestra datos observados y curva ajustada. Los logs permiten consultar el resultado y errores técnicos sin devolver detalles internos en fallos inesperados.
+La respuesta polinómica incluye grado, coeficientes y métricas. La respuesta Random Forest incluye parámetros, columnas predictoras, métricas, las 15 importancias principales y rutas de artefactos. En ambos casos HTTP 200 incluye \texttt{reference} y \texttt{run\_id}. El archivo \texttt{modelos/<run\_id>\_modelo.pkt} contiene el objeto entrenado y se puede recargar con \texttt{PolynomialRegressor.load(ruta)} para llamar a \texttt{predict(x)}. El CSV de salida contiene \texttt{x,y\_observado,y\_predicho,residuo}. La gráfica muestra datos observados y curva ajustada. Los logs por ejecución incluyen usuario autenticado, IP y huella del token. Además, \texttt{runs/\_auditoria/api\_audit.jsonl} registra cada petición (incluidos health y errores) con fecha UTC, método, ruta y estado. Se registra una huella truncada del token, nunca su valor Bearer completo. La IP procede de \texttt{REMOTE\_ADDR}; detrás de un proxy inverso será la dirección del proxy si no se configura confianza explícita para proxies conocidos. Establece una política de acceso y retención para estos logs, ya que contienen identificadores de usuario e IP.
 
 El formato \texttt{.pkt} de este ejemplo utiliza serialización Python pickle. Solo se deben cargar archivos generados localmente y de confianza: pickle puede ejecutar código al cargar un fichero manipulado. Para intercambio entre sistemas, conviene guardar los coeficientes y metadatos en JSON en vez de cargar pickles externos.
 
 \section{Validaciones y límites del ejemplo}
-La API limita tamaño de petición, filas CSV y grado; exige números finitos, al menos dos observaciones y suficientes valores $x$ distintos para el grado. Responde HTTP 400 ante entrada no válida, 413 ante contenido demasiado grande y 422 cuando no se puede ajustar el modelo. No incorpora autenticación, autorización, base de datos, colas de trabajo ni almacenamiento remoto; antes de exponerla fuera de localhost se deben añadir controles de seguridad, gestión de secretos, retención y observabilidad acordes al entorno.
+La API limita tamaño de petición y filas CSV. Para polinomios valida grado, finitud y valores $x$ distintos; para Random Forest limita hiperparámetros, exige una columna objetivo numérica y al menos 10 filas válidas. Responde HTTP 400 ante entrada no válida, 401 ante credenciales o token no válidos, 413 ante contenido demasiado grande y 422 cuando no se puede ajustar el modelo. Los tokens firmados caducan; la ruta de salud permanece pública y todas las rutas de entrenamiento requieren Bearer. Para un despliegue real se deben usar HTTPS, almacenar credenciales en un gestor de secretos, limitar intentos de autenticación y añadir políticas de autorización, retención y observabilidad apropiadas.
 
 \section{Notas sobre interpretación}
+Random Forest no extrapola tendencias fuera del rango de entrenamiento de forma lineal y sus importancias no implican causalidad. La evaluación usa una partición aleatoria; no modela autocorrelación geográfica ni temporal.
+
 La regresión polinómica es sensible al grado, al rango y escala de $x$, a valores atípicos y a extrapolación. $R^2$ y errores se calculan sobre los mismos datos usados para el ajuste; por sí solos no estiman generalización. Para uso predictivo real, separar entrenamiento y evaluación, comparar grados con validación y revisar residuos y supuestos del dominio.
 
 Este caso sirve para demostrar el flujo técnico, no para estimar plazos reales de expedientes ni evaluar el desempeño de unidades municipales. Para ello harían falta datos autorizados, definición institucional del inicio/fin de tramitación, tratamiento de expedientes abiertos/censurados, análisis de estacionalidad y validación temporal fuera de muestra. Se puede regenerar el fichero con \texttt{python scripts/generate\_terrace\_cases.py}; la semilla fija mantiene la demo reproducible.
 
 \appendix
 \section{Código fuente completo de la API Flask}
-Este listado corresponde a \texttt{app.py}, incluido también como archivo ejecutable en la raíz del proyecto. La lógica matemática se mantiene en la clase separada \texttt{regression/polynomial\_regressor.py}.
+Este listado corresponde a \texttt{app.py}, que contiene la fábrica Flask y las rutas HTTP. La validación común y la ejecución se delegan en \texttt{api\_functions.py}; los estimadores residen en módulos separados.
 \begin{lstlisting}[language=Python,caption={Código fuente completo de app.py}]
 """API Flask de ejemplo para ajuste de regresión polinómica."""
 from __future__ import annotations
 
-import csv
-import io
+import hashlib
+import hmac
+import json
 import logging
-import re
+import os
+import secrets
+from functools import wraps
 from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 
-import numpy as np
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.exceptions import RequestEntityTooLarge
+from dotenv import load_dotenv
 
-from regression.polynomial_regressor import PolynomialRegressor
+from api_functions import (
+    parse_csv, parse_json_points, random_forest_options, run_model,
+    run_random_forest, validate_reference,
+)
+
+
+# Carga variables locales antes de inicializar el diccionario de usuarios y la
+# configuración de caducidad. Las variables ya definidas en el entorno prevalecen.
+load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 
 # Todas las salidas quedan ancladas al proyecto, no al directorio desde el que
 # se haya lanzado Flask. Esto evita que un cambio de working directory disperse
@@ -143,28 +196,152 @@ from regression.polynomial_regressor import PolynomialRegressor
 OUTPUT_ROOT = Path(__file__).resolve().parent / "runs"
 # reference forma parte de una ruta de disco: la lista permitida impide `../`,
 # separadores y caracteres que puedan escapar o crear rutas ambiguas.
-REFERENCE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-# Límite lógico independiente del límite de bytes: protege memoria y coste del
-# ajuste incluso si el cliente comprime o envía valores muy cortos.
-MAX_POINTS = 100_000
+# Diccionario didáctico usuario -> contraseña. Las contraseñas se leen del entorno
+# y no se escriben en el repositorio. Añade aquí más pares para otros usuarios.
+USERS = {
+    "admin": os.environ.get("API_ADMIN_PASSWORD", ""),
+}
+# Los tokens Bearer caducan tras una hora por defecto.
+TOKEN_MAX_AGE_SECONDS = max(1, int(os.environ.get("API_TOKEN_TTL_SECONDS", "3600")))
 
 
-def create_app(output_root: Path = OUTPUT_ROOT) -> Flask:
+def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token_secret: str | None = None) -> Flask:
     app = Flask(__name__)
+    output_root = Path(output_root)
+    # API_TOKEN_SECRET debe ser estable y secreto en despliegues con varios
+    # procesos. El secreto aleatorio permite arrancar el ejemplo localmente; en
+    # ese caso los tokens dejan de ser válidos al reiniciar el proceso.
+    token_secret = token_secret or os.environ.get("API_TOKEN_SECRET") or secrets.token_urlsafe(32)
+    app.config["API_USERS"] = USERS if users is None else users
+    app.config["API_TOKEN_MAX_AGE"] = TOKEN_MAX_AGE_SECONDS
+    token_serializer = URLSafeTimedSerializer(token_secret, salt="regresion-polinomica-api-token")
+    # Registro de auditoría central: incluye también login, health, errores 4xx
+    # y rutas inexistentes, no solo las ejecuciones que crean un log por run.
+    audit_dir = output_root / "_auditoria"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = audit_dir / "api_audit.jsonl"
+    audit_logger = logging.getLogger(
+        "regression.api.audit." + hashlib.sha256(str(audit_path.resolve()).encode()).hexdigest()[:12]
+    )
+    audit_logger.setLevel(logging.INFO)
+    audit_logger.propagate = False
+    if not any(getattr(handler, "baseFilename", None) == str(audit_path.resolve())
+               for handler in audit_logger.handlers):
+        audit_handler = logging.FileHandler(audit_path, encoding="utf-8")
+        audit_handler.setFormatter(logging.Formatter("%(message)s"))
+        audit_logger.addHandler(audit_handler)
     # Flask rechaza cuerpos excesivos antes de parsearlos; el endpoint CSV aplica
     # además un máximo menor sobre el archivo concreto.
     app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
-    output_root = Path(output_root)
+
+    def token_fingerprint(token: str) -> str:
+        # Se registra solo una huella SHA-256, nunca el Bearer reutilizable.
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+
+    @app.before_request
+    def capture_request_context():
+        authorization = request.headers.get("Authorization", "")
+        scheme, separator, supplied_token = authorization.partition(" ")
+        g.authenticated_user = None
+        g.requested_username = None
+        g.client_ip = request.remote_addr or "unknown"
+        g.token_fingerprint = (
+            token_fingerprint(supplied_token.strip())
+            if separator and scheme.lower() == "bearer" and supplied_token.strip()
+            else None
+        )
+
+    @app.after_request
+    def write_audit_log(response):
+        # JSONL mantiene una entrada estructurada y evita inyección de líneas en
+        # los logs si usuario, ruta o cabeceras contienen caracteres especiales.
+        record = {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "method": request.method,
+            "path": request.path,
+            "status": response.status_code,
+            "username": (getattr(g, "authenticated_user", None)
+                         or getattr(g, "requested_username", None) or "anonymous"),
+            "token_fingerprint": getattr(g, "token_fingerprint", None),
+            "client_ip": getattr(g, "client_ip", None),
+        }
+        audit_logger.info(json.dumps(record, ensure_ascii=False, separators=(",", ":")))
+        return response
 
     @app.errorhandler(RequestEntityTooLarge)
     def too_large(_error):
         return jsonify(error="El cuerpo supera el límite de 5 MB."), 413
+
+    @app.post("/api/v1/auth/token")
+    def issue_token():
+        # El endpoint de autenticación es público; solo emite un token cuando
+        # el par usuario/contraseña coincide con el diccionario configurado.
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return jsonify(error="El cuerpo debe ser un objeto JSON."), 400
+        username = body.get("username")
+        password = body.get("password")
+        if isinstance(username, str):
+            g.requested_username = username
+        if not isinstance(username, str) or not isinstance(password, str):
+            return jsonify(error="username y password son obligatorios."), 400
+        expected_password = app.config["API_USERS"].get(username)
+        # compare_digest reduce diferencias de tiempo al comparar contraseñas.
+        valid = (
+            isinstance(expected_password, str)
+            and bool(expected_password)
+            and hmac.compare_digest(expected_password.encode("utf-8"), password.encode("utf-8"))
+        )
+        if not valid:
+            return jsonify(error="Credenciales no válidas."), 401
+        token = token_serializer.dumps({"sub": username})
+        # La llamada de login también queda asociada a usuario y huella del
+        # token recién emitido, sin registrar el valor secreto del token.
+        g.authenticated_user = username
+        g.token_fingerprint = token_fingerprint(token)
+        return jsonify(
+            access_token=token,
+            token_type="Bearer",
+            expires_in=app.config["API_TOKEN_MAX_AGE"],
+        ), 200
+
+    def require_token(view):
+        # Protege las rutas de entrenamiento sin duplicar la validación del token.
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            authorization = request.headers.get("Authorization", "")
+            scheme, separator, token = authorization.partition(" ")
+            if not separator or scheme.lower() != "bearer" or not token.strip():
+                response = jsonify(error="Se requiere Authorization: Bearer <token>.")
+                response.status_code = 401
+                response.headers["WWW-Authenticate"] = "Bearer"
+                return response
+            try:
+                claims = token_serializer.loads(
+                    token.strip(), max_age=app.config["API_TOKEN_MAX_AGE"]
+                )
+            except BadSignature:
+                response = jsonify(error="Token inválido o caducado.")
+                response.status_code = 401
+                response.headers["WWW-Authenticate"] = "Bearer"
+                return response
+            username = claims.get("sub") if isinstance(claims, dict) else None
+            current_password = app.config["API_USERS"].get(username) if isinstance(username, str) else None
+            if not isinstance(current_password, str) or not current_password:
+                response = jsonify(error="Token inválido o caducado.")
+                response.status_code = 401
+                response.headers["WWW-Authenticate"] = "Bearer"
+                return response
+            g.authenticated_user = username
+            return view(*args, **kwargs)
+        return wrapped
 
     @app.get("/api/v1/health")
     def health():
         return jsonify(status="ok", service="regresion-polinomica-api", version="1.0.0")
 
     @app.post("/api/v1/regresion/polinomica")
+    @require_token
     def fit_json():
         # `silent=True` permite devolver un 400 uniforme para JSON mal formado,
         # en lugar de que el detalle interno del parser llegue al cliente.
@@ -187,6 +364,7 @@ def create_app(output_root: Path = OUTPUT_ROOT) -> Flask:
         return run_model(app, output_root, reference, degree, x, y, "json")
 
     @app.post("/api/v1/regresion/polinomica/csv")
+    @require_token
     def fit_csv():
         # Multipart separa los parámetros de control del fichero binario y es el
         # formato que Postman usa para adjuntar CSV sin codificarlo en JSON.
@@ -214,8 +392,93 @@ def create_app(output_root: Path = OUTPUT_ROOT) -> Flask:
             return jsonify(error=f"CSV no válido: {exc}"), 400
         return run_model(app, output_root, reference, degree, x, y, "csv", raw_csv=raw)
 
+    @app.post("/api/v1/random-forest/terrazas")
+    @require_token
+    def fit_random_forest_terraces():
+        # Emplea el CSV versionado en ejemplos para reproducir la práctica sin subir fichero.
+        body = request.get_json(silent=True)
+        if body is None:
+            body = {}
+        if not isinstance(body, dict):
+            return jsonify(error="El cuerpo debe ser un objeto JSON."), 400
+        reference, error = validate_reference(body.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+        try:
+            options = random_forest_options(body)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        sample_path = Path(__file__).resolve().parent / "ejemplos" / "datos_ejemplo_complejo.csv"
+        if not sample_path.is_file():
+            return jsonify(error="No está disponible el CSV de ejemplo complejo."), 500
+        return run_random_forest(app, output_root, reference, sample_path.read_bytes(), options,
+                                 "datos_ejemplo_complejo.csv")
+
+    @app.post("/api/v1/random-forest/csv")
+    @require_token
+    def fit_random_forest_csv():
+        # Ruta multipart para entrenar con un CSV del cliente usando el mismo pipeline.
+        reference, error = validate_reference(request.form.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+        try:
+            options = random_forest_options(request.form)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        uploaded = request.files.get("file")
+        if uploaded is None or not uploaded.filename:
+            return jsonify(error="Falta el archivo CSV en el campo multipart 'file'."), 400
+        raw = uploaded.read()
+        if len(raw) > 4 * 1024 * 1024:
+            return jsonify(error="El CSV supera el límite de 4 MB."), 413
+        return run_random_forest(app, output_root, reference, raw, options, uploaded.filename)
+
     return app
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=False)
+\end{lstlisting}
+
+\section{Funciones auxiliares de la API}
+\texttt{api\_functions.py} centraliza las validaciones, el parseo tabular y la persistencia de resultados compartida por los endpoints.
+\begin{lstlisting}[language=Python,caption={Código de api\_functions.py}]
+"""Funciones de validación y ejecución que comparten los endpoints Flask."""
+from __future__ import annotations
+
+import csv
+import io
+import logging
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from uuid import uuid4
+
+import numpy as np
+from flask import g, jsonify
+
+from regression.polynomial_regressor import PolynomialRegressor
+from regression.random_forest_regressor import RandomForestRegressorModel
+
+# Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
+MAX_POINTS = 100_000
+REFERENCE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 def validate_reference(value):
     # La validación se aplica antes de formar cualquier ruta. No se normaliza una
@@ -223,7 +486,6 @@ def validate_reference(value):
     if not isinstance(value, str) or not REFERENCE_RE.fullmatch(value):
         return None, "reference es obligatorio y debe tener 1-64 caracteres: letras, números, punto, guion o guion bajo."
     return value, None
-
 
 def parse_json_points(points):
     # Limitar número de filas antes de convertirlas a arrays evita asignaciones
@@ -236,7 +498,6 @@ def parse_json_points(points):
     except (TypeError, ValueError, KeyError, IndexError):
         raise ValueError("Cada elemento de data debe tener valores numéricos x e y.") from None
     return validate_xy(x, y)
-
 
 def parse_csv(text):
     # DictReader permite conservar columnas contextuales del caso de terrazas,
@@ -256,7 +517,6 @@ def parse_csv(text):
             raise ValueError(f"El CSV supera {MAX_POINTS} filas de datos.")
     return validate_xy(np.asarray(x_values), np.asarray(y_values))
 
-
 def validate_xy(x, y):
     # NaN e infinito contaminan coeficientes y métricas sin producir siempre una
     # excepción clara; se rechazan en el borde HTTP antes de invocar NumPy.
@@ -266,6 +526,108 @@ def validate_xy(x, y):
         raise ValueError("x e y solo pueden contener números finitos.")
     return x, y
 
+def random_forest_options(source):
+    """Valida opciones para el formato JSON o multipart de Postman."""
+    def parse_int(key, default):
+        raw = source.get(key, default)
+        try:
+            parsed = int(raw)
+            if isinstance(raw, float) and raw != parsed:
+                raise ValueError
+            return parsed
+        except (TypeError, ValueError):
+            raise ValueError(f"{key} debe ser un entero válido.") from None
+    n_estimators = parse_int("n_estimators", 200)
+    random_state = parse_int("random_state", 42)
+    raw_depth = source.get("max_depth", None)
+    max_depth = None if raw_depth in (None, "", "null") else parse_int("max_depth", None)
+    try:
+        test_size = float(source.get("test_size", 0.2))
+    except (TypeError, ValueError):
+        raise ValueError("test_size debe ser un número válido.") from None
+    target = source.get("target", "y")
+    if not 10 <= n_estimators <= 1000:
+        raise ValueError("n_estimators debe estar entre 10 y 1000.")
+    if max_depth is not None and not 1 <= max_depth <= 100:
+        raise ValueError("max_depth debe ser null o estar entre 1 y 100.")
+    if not 0.1 <= test_size <= 0.4:
+        raise ValueError("test_size debe estar entre 0.1 y 0.4.")
+    if random_state < 0:
+        raise ValueError("random_state debe ser un entero no negativo.")
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("target debe indicar el nombre de una columna.")
+    return {"n_estimators": n_estimators, "max_depth": max_depth, "test_size": test_size,
+            "random_state": random_state, "target": target}
+
+def run_random_forest(app, output_root, reference, raw_csv, options, source_name):
+    """Ejecuta el pipeline y guarda artefactos separados por referencia/run_id."""
+    from io import BytesIO
+    import pandas as pd
+
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
+    base = Path(output_root) / reference
+    folders = {name: base / name for name in ("graficas", "csv_entrada", "logs_salida", "csv_salida", "modelos")}
+    for folder in folders.values():
+        folder.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger(f"random_forest.{reference}.{run_id}")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(folders["logs_salida"] / f"{run_id}.log", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        # Vincula cada entrenamiento a la identidad auditada por la capa Flask.
+        logger.info("Petición algoritmo=random_forest username=%s client_ip=%s token_fingerprint=%s source=%s",
+                    getattr(g, "authenticated_user", None) or "anonymous",
+                    getattr(g, "client_ip", None) or "unknown",
+                    getattr(g, "token_fingerprint", None) or "none", source_name)
+        input_path = folders["csv_entrada"] / f"{run_id}.csv"
+        input_path.write_bytes(raw_csv)
+        try:
+            frame = pd.read_csv(BytesIO(raw_csv), encoding="utf-8-sig")
+        except (UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+            raise ValueError(f"CSV no válido: {exc}") from None
+        if len(frame) > MAX_POINTS:
+            raise ValueError(f"El CSV supera {MAX_POINTS} filas de datos.")
+        if frame.columns.duplicated().any():
+            raise ValueError("El CSV no puede contener nombres de columna duplicados.")
+        model = RandomForestRegressorModel(n_estimators=options["n_estimators"],
+                                           max_depth=options["max_depth"],
+                                           test_size=options["test_size"],
+                                           random_state=options["random_state"])
+        result = model.fit(frame, target=options["target"])
+        csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
+        graph_path = folders["graficas"] / f"{run_id}_random_forest.png"
+        model_path = folders["modelos"] / f"{run_id}_random_forest.pkt"
+        model.save(model_path, result)
+        model.write_predictions(csv_path, result)
+        model.write_plot(graph_path, result)
+        metadata = {
+            "reference": reference, "run_id": run_id,
+            "algorithm": "RandomForestRegressor", "target": result.target,
+            "feature_columns": result.feature_columns,
+            "parameters": {key: options[key] for key in ("n_estimators", "max_depth", "test_size", "random_state")},
+            "n_rows_input": int(len(frame)), "n_rows_train": int(len(frame) - len(result.predictions)),
+            "n_rows_test": int(len(result.predictions)), "metrics": result.metrics,
+            "feature_importances_top_15": result.feature_importances[:15],
+            "artifacts": {
+                "input_csv": str(input_path.relative_to(output_root)),
+                "output_csv": str(csv_path.relative_to(output_root)),
+                "graph_png": str(graph_path.relative_to(output_root)),
+                "trained_model_pkt": str(model_path.relative_to(output_root)),
+                "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
+            },
+        }
+        logger.info("Entrenamiento Random Forest completado: n=%d metrics=%s", len(frame), result.metrics)
+        return jsonify(metadata), 200
+    except (ValueError, UnicodeDecodeError) as exc:
+        logger.exception("No se pudo entrenar el Random Forest: %s", exc)
+        return jsonify(error=f"No se pudo entrenar el modelo: {exc}", reference=reference, run_id=run_id), 422
+    except Exception as exc:
+        logger.exception("Error interno entrenando Random Forest: %s", exc)
+        return jsonify(error="Error interno durante el entrenamiento.", reference=reference, run_id=run_id), 500
+    finally:
+        handler.close()
+        logger.removeHandler(handler)
 
 def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=None):
     # El sufijo aleatorio evita sobrescrituras si llegan dos peticiones para la
@@ -283,6 +645,14 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
     try:
+        # Cada log de ejecución enlaza el trabajo con usuario, IP y huella de
+        # token de la petición autenticada, sin almacenar el Bearer en claro.
+        logger.info(
+            "Petición username=%s client_ip=%s token_fingerprint=%s",
+            getattr(g, "authenticated_user", None) or "anonymous",
+            getattr(g, "client_ip", None) or "unknown",
+            getattr(g, "token_fingerprint", None) or "none",
+        )
         input_path = folders["csv_entrada"] / f"{run_id}.csv"
         if raw_csv is None:
             # Para JSON también se guarda una entrada tabular mínima; así cada run
@@ -295,9 +665,11 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
             # Guardar bytes originales preserva columnas extra, orden, formato y
             # encabezados exactamente como los envió el cliente.
             input_path.write_bytes(raw_csv)
-
-        model = PolynomialRegressor(degree=degree)
-        result = model.fit(x, y)
+        X_train, X_test, y_train, y_test = train_test_split(
+            x, y, test_size=0.20, random_state=42
+        )
+        model = PolynomialRegressor(X_train, X_test, y_train, y_test,degree=degree)
+        result = model.fit()
         csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
         graph_path = folders["graficas"] / f"{run_id}_ajuste.png"
         model_path = folders["modelos"] / f"{run_id}_modelo.pkt"
@@ -305,12 +677,12 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
         # aunque la API se reinicie; el endpoint devuelve la ruta para trazabilidad.
         model.save(model_path)
         model.write_predictions(csv_path, result)
-        model.write_plot(graph_path, x, y, result)
+        model.write_plot(graph_path, X_test, y_test, result)
         metadata = {
             "reference": reference,
             "run_id": run_id,
             "degree": degree,
-            "n_observations": int(len(x)),
+            "n_observations": int(len(X_test)),
             "coefficients_descending": result.coefficients.tolist(),
             "metrics": result.metrics,
             "artifacts": {
@@ -336,12 +708,147 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
         # servicio prolongado y permite leer/archivar el log al terminar la petición.
         handler.close()
         logger.removeHandler(handler)
+\end{lstlisting}
+
+\section{Clase de Random Forest}
+La clase encapsula el preprocesamiento, entrenamiento, evaluación y generación de artefactos.
+\begin{lstlisting}[language=Python,caption={Código de regression/random\_forest\_regressor.py}]
+"""Entrenamiento y evaluación de un Random Forest para regresión tabular."""
+from __future__ import annotations
+
+import pickle
+from dataclasses import dataclass
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 
-app = create_app()
+@dataclass
+class RandomForestResult:
+    model: Pipeline
+    metrics: dict
+    predictions: pd.DataFrame
+    feature_importances: list[dict]
+    feature_columns: list[str]
+    target: str
 
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+
+class RandomForestRegressorModel:
+    """Preprocesa variables mixtas, entrena el bosque y produce métricas."""
+
+    def __init__(self, n_estimators=200, max_depth=None, test_size=0.2, random_state=42):
+        if isinstance(n_estimators, bool) or not isinstance(n_estimators, int) or not 10 <= n_estimators <= 1000:
+            raise ValueError("n_estimators debe ser un entero entre 10 y 1000.")
+        if max_depth is not None and (isinstance(max_depth, bool) or not isinstance(max_depth, int) or not 1 <= max_depth <= 100):
+            raise ValueError("max_depth debe ser null o un entero entre 1 y 100.")
+        if isinstance(test_size, bool) or not isinstance(test_size, (int, float)) or not 0.1 <= test_size <= 0.4:
+            raise ValueError("test_size debe estar entre 0.1 y 0.4.")
+        if isinstance(random_state, bool) or not isinstance(random_state, int) or random_state < 0:
+            raise ValueError("random_state debe ser un entero no negativo.")
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.test_size = float(test_size)
+        self.random_state = random_state
+
+    def fit(self, frame: pd.DataFrame, target: str = "y") -> RandomForestResult:
+        if target not in frame.columns:
+            raise ValueError(f"No existe la columna objetivo '{target}'.")
+        # El ID solo enlaza resultados con expedientes; excluirlo evita memorizar claves.
+        id_column = "expediente_id" if "expediente_id" in frame.columns else None
+        feature_columns = [col for col in frame.columns if col not in {target, id_column}]
+        if not feature_columns:
+            raise ValueError("El CSV debe aportar al menos una columna predictora además del objetivo.")
+        data = frame.copy()
+        data[target] = pd.to_numeric(data[target], errors="coerce")
+        valid_target = data[target].notna() & np.isfinite(data[target].to_numpy(dtype=float))
+        data = data.loc[valid_target].reset_index(drop=True)
+        if len(data) < 10:
+            raise ValueError("Se requieren al menos 10 filas con objetivo numérico para entrenar y evaluar.")
+        X = data[feature_columns].copy()
+        y = data[target].astype(float)
+        # Las columnas textuales enteramente numéricas pasan a continuas; las demás son categorías.
+        for column in feature_columns:
+            if X[column].dtype == object:
+                converted = pd.to_numeric(X[column], errors="coerce")
+                non_empty = X[column].notna() & (X[column].astype(str).str.strip() != "")
+                if non_empty.any() and converted[non_empty].notna().all():
+                    X[column] = converted
+        numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
+        categorical_columns = [col for col in feature_columns if col not in numeric_columns]
+        transformers = []
+        if numeric_columns:
+            transformers.append(("numeric", Pipeline([("imputer", SimpleImputer(strategy="median"))]), numeric_columns))
+        if categorical_columns:
+            transformers.append(("categorical", Pipeline([
+                ("imputer", SimpleImputer(strategy="most_frequent")),
+                ("onehot", OneHotEncoder(handle_unknown="ignore")),
+            ]), categorical_columns))
+        pipeline = Pipeline([
+            ("preprocess", ColumnTransformer(transformers=transformers, remainder="drop")),
+            ("random_forest", RandomForestRegressor(
+                n_estimators=self.n_estimators, max_depth=self.max_depth,
+                random_state=self.random_state, n_jobs=-1,
+            )),
+        ])
+        indices = np.arange(len(y))
+        train_idx, test_idx = train_test_split(indices, test_size=self.test_size, random_state=self.random_state)
+        pipeline.fit(X.iloc[train_idx], y.iloc[train_idx])
+        predicted = pipeline.predict(X.iloc[test_idx])
+        observed = y.iloc[test_idx].to_numpy(dtype=float)
+        residuals = observed - predicted
+        metrics = {
+            "r2": float(r2_score(observed, predicted)),
+            "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
+            "mae": float(mean_absolute_error(observed, predicted)),
+        }
+        predictions = pd.DataFrame({"y_observado": observed, "y_predicho": predicted, "residuo": residuals})
+        if id_column:
+            predictions.insert(0, id_column, data[id_column].iloc[test_idx].to_numpy())
+        names = pipeline.named_steps["preprocess"].get_feature_names_out()
+        scores = pipeline.named_steps["random_forest"].feature_importances_
+        importance = [{"feature": str(name), "importance": float(score)} for name, score in
+                      sorted(zip(names, scores), key=lambda item: item[1], reverse=True)]
+        return RandomForestResult(pipeline, metrics, predictions, importance, feature_columns, target)
+
+    @staticmethod
+    def save(path: Path, result: RandomForestResult):
+        # Cargar pickle ejecuta código: aceptar únicamente ficheros de origen confiable.
+        with Path(path).open("wb") as stream:
+            pickle.dump(result.model, stream, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def write_predictions(path: Path, result: RandomForestResult):
+        result.predictions.to_csv(path, index=False, encoding="utf-8")
+
+    @staticmethod
+    def write_plot(path: Path, result: RandomForestResult):
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        observed = result.predictions["y_observado"].to_numpy()
+        predicted = result.predictions["y_predicho"].to_numpy()
+        limits = [min(observed.min(), predicted.min()), max(observed.max(), predicted.max())]
+        axes[0].scatter(observed, predicted, alpha=0.7, color="#1f77b4")
+        axes[0].plot(limits, limits, "--", color="#d62728", label="Predicción ideal")
+        axes[0].set(title="Observado frente a predicho", xlabel="Valor observado", ylabel="Valor predicho")
+        axes[0].legend()
+        axes[0].grid(True, alpha=0.25)
+        top = result.feature_importances[:15][::-1]
+        axes[1].barh([row["feature"] for row in top], [row["importance"] for row in top], color="#2ca02c")
+        axes[1].set(title="Importancia de variables (15 principales)", xlabel="Importancia")
+        axes[1].grid(axis="x", alpha=0.25)
+        fig.tight_layout()
+        fig.savefig(path, dpi=160)
+        plt.close(fig)
 \end{lstlisting}
 
 \end{document}

@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
+
+
 @dataclass
 class FitResult:
     coefficients: np.ndarray
@@ -21,17 +24,23 @@ class FitResult:
 class PolynomialRegressor:
     """Ajusta un polinomio por mínimos cuadrados usando numpy."""
 
-    def __init__(self, degree: int = 2):
+    def __init__(self, X_train, X_test, y_train, y_test,degree: int = 2):
         if isinstance(degree, bool) or not isinstance(degree, int) or not 1 <= degree <= 10:
             raise ValueError("degree debe estar entre 1 y 10.")
         self.degree = degree
         self.coefficients_ = None
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
 
-    def fit(self, x, y) -> FitResult:
+    def fit(self) -> FitResult:
         # Convertir a arrays numéricos una sola vez simplifica validaciones y
         # garantiza que el ajuste opere sobre datos homogéneos.
-        x = np.asarray(x, dtype=float)
-        y = np.asarray(y, dtype=float)
+        x = np.asarray(self.X_train, dtype=float)
+        y = np.asarray(self.y_train, dtype=float)
+        x_t = np.asarray(self.X_test, dtype=float)
+        y_t = np.asarray(self.y_test, dtype=float)
         if x.ndim != 1 or y.ndim != 1 or len(x) != len(y):
             raise ValueError("x e y deben ser vectores de igual longitud.")
         # Para grado d se requieren al menos d+1 observaciones y d+1 valores x
@@ -45,23 +54,26 @@ class PolynomialRegressor:
         # Polynomial.fit escala internamente el dominio y mejora el condicionamiento
         # frente a construir directamente potencias grandes de x. convert() pasa
         # después al dominio estándar para guardar coeficientes legibles/reutilizables.
-        fitted = np.polynomial.Polynomial.fit(x, y, deg=self.degree)
+        fitted = np.polynomial.Polynomial.fit(x,y , deg=self.degree)
         polynomial = fitted.convert()
         coefficients = polynomial.coef[::-1]
         self.coefficients_ = coefficients.copy()
-        predicted = polynomial(x)
-        residuals = y - predicted
+        #Para vlidar solo uso la X_test
+        predicted = polynomial(x_t)
+        #predicted contiene lo valores de y obtenidos con el modelo
+        # los residuos miden la diferencia entre lo que me da el algoritmo predicted y el valor real y_test 
+        residuals = y_t - predicted
         # R² no está definido si y es constante. En el caso perfecto se informa 1;
         # si no lo es, se informa 0 como valor neutro y se conserva RMSE/MAE.
         ss_res = float(np.sum(residuals ** 2))
-        ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+        ss_tot = float(np.sum((y_t - np.mean(y_t)) ** 2))
         r2 = 1.0 if ss_tot == 0 and ss_res == 0 else (0.0 if ss_tot == 0 else 1 - ss_res / ss_tot)
         metrics = {
             "r2": float(r2),
             "rmse": float(np.sqrt(np.mean(residuals ** 2))),
             "mae": float(np.mean(np.abs(residuals))),
         }
-        return FitResult(coefficients, x.copy(), np.asarray(predicted), residuals, metrics)
+        return FitResult(coefficients, x_t.copy(), np.asarray(predicted), residuals, metrics)
 
     def predict(self, x):
         """Predice con un modelo ya entrenado; x puede ser escalar o vector."""
