@@ -1,4 +1,30 @@
-"""API Flask de ejemplo para ajuste de regresión polinómica."""
+"""API web didáctica para ejecutar modelos de regresión.
+
+Recorrido de una petición:
+1. Flask recibe una ruta HTTP y comprueba el token Bearer.
+2. Este archivo valida los campos propios de la petición y lee JSON o CSV.
+3. api_functions.py prepara los datos, entrena y guarda métricas/artefactos.
+4. regression/ contiene un módulo Python por algoritmo.
+
+Las respuestas de entrenamiento devuelven JSON con un identificador de
+ejecución y rutas relativas a los archivos guardados bajo runs/<reference>/.
+
+Mapa de rutas:
+- GET  /api/v1/health: estado del servicio; no necesita token.
+- POST /api/v1/auth/token: recibe username/password; devuelve Bearer.
+- POST /api/v1/regresion/polinomica: puntos x/y en JSON.
+- POST /api/v1/regresion/polinomica/csv: columnas x/y en CSV.
+- POST /api/v1/regresion/polinomica/randomizedsearch: búsqueda desde JSON o CSV.
+- POST /api/v1/random-forest/terrazas y /api/v1/random-forest/csv.
+- POST /api/v1/regresion/knn/kfold y /api/v1/regresion/knn/leave-one-out.
+- POST /api/v1/regresion/svm/csv: regresión con Support Vector Regression.
+- POST /api/v1/regresion/boosting/adaboost/csv.
+- POST /api/v1/regresion/boosting/gradient/csv.
+
+Todas las rutas POST de entrenamiento requieren el encabezado Authorization:
+Bearer <token>. Los endpoints CSV reciben multipart/form-data con un campo
+file; los polinómicos también aceptan puntos x/y como JSON.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -19,7 +45,8 @@ from dotenv import load_dotenv
 
 from api_functions import (
     parse_csv, parse_json_points, random_forest_options, run_model,
-    run_random_forest, run_polynomial_search, validate_reference,parse_integer
+    run_random_forest, run_polynomial_search, run_knn_cross_validation,
+    run_tabular_regressor, regression_model_options, validate_reference, parse_integer,
 )
 
 
@@ -41,6 +68,11 @@ TOKEN_MAX_AGE_SECONDS = max(1, int(os.environ.get("API_TOKEN_TTL_SECONDS", "3600
 
 
 def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token_secret: str | None = None) -> Flask:
+    """Crea la aplicación Flask y registra todas las rutas.
+
+    Los argumentos permiten indicar una carpeta de salida y credenciales
+    distintas durante una ejecución local o en un entorno de despliegue.
+    """
     app = Flask(__name__)
     output_root = Path(output_root)
     # API_TOKEN_SECRET debe ser estable y secreto en despliegues con varios
@@ -75,6 +107,8 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
 
     @app.before_request
     def capture_request_context():
+        # Flask ejecuta esta función antes de cada ruta. Guardamos los datos de
+        # auditoría en `g`, un espacio temporal disponible durante esta petición.
         authorization = request.headers.get("Authorization", "")
         scheme, separator, supplied_token = authorization.partition(" ")
         g.authenticated_user = None
@@ -109,6 +143,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
 
     @app.post("/api/v1/auth/token")
     def issue_token():
+        """Comprueba las credenciales y devuelve un token Bearer temporal."""
         # El endpoint de autenticación es público; solo emite un token cuando
         # el par usuario/contraseña coincide con el diccionario configurado.
         body = request.get_json(silent=True)
@@ -144,6 +179,8 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         # Protege las rutas de entrenamiento sin duplicar la validación del token.
         @wraps(view)
         def wrapped(*args, **kwargs):
+            # El decorador deja que cada endpoint se concentre en su modelo;
+            # aquí comprobamos una sola vez que quien llama está autenticado.
             authorization = request.headers.get("Authorization", "")
             scheme, separator, token = authorization.partition(" ")
             if not separator or scheme.lower() != "bearer" or not token.strip():
@@ -173,11 +210,19 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
 
     @app.get("/api/v1/health")
     def health():
+        """Ruta pública de comprobación: responde si Flask está disponible."""
+        # Esta ruta pública sirve para comprobar que el servidor está activo.
         return jsonify(status="ok", service="regresion-polinomica-api", version="1.0.0")
 
     @app.post("/api/v1/regresion/polinomica")
     @require_token
     def fit_json():
+        """POST JSON: ajusta un polinomio con una lista de puntos x/y.
+
+        Respuesta 200: métricas y rutas de artefactos. Respuesta 400: campos o
+        puntos inválidos. Requiere token Bearer.
+        """
+        # Este endpoint recibe puntos x/y en JSON; el ajuste se delega a run_model.
         # `silent=True` permite devolver un 400 uniforme para JSON mal formado,
         # en lugar de que el detalle interno del parser llegue al cliente.
         body = request.get_json(silent=True)
@@ -201,6 +246,12 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
     @app.post("/api/v1/regresion/polinomica/csv")
     @require_token
     def fit_csv():
+        """POST multipart: ajusta un polinomio con columnas CSV x e y.
+
+        El fichero se adjunta en el campo `file`; degree y reference son campos
+        de texto. La respuesta 200 enlaza métricas y artefactos del ajuste.
+        """
+        # Esta variante recibe los mismos datos en un archivo CSV multipart.
         # Multipart separa los parámetros de control del fichero binario y es el
         # formato que Postman usa para adjuntar CSV sin codificarlo en JSON.
         reference, error = validate_reference(request.form.get("reference"))
@@ -230,7 +281,11 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
     @app.post("/api/v1/regresion/polinomica/randomizedsearch")
     @require_token
     def fit_polynomial_randomized_search():
-        """Recibe datos JSON o CSV y busca la mejor configuración polinómica."""
+        """POST JSON o multipart: selecciona el grado con validación cruzada.
+
+        JSON lleva una lista `data` de puntos x/y; multipart lleva `file`. Los
+        campos n_iter, cv y random_state controlan la búsqueda reproducible.
+        """
         raw_csv = None
         # El mismo endpoint admite dos formatos: JSON lleva una lista de puntos;
         # multipart/form-data lleva los parámetros en form y el archivo en file.
@@ -284,12 +339,17 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
                 return jsonify(error="w debe contener pesos finitos no negativos, uno por observación."), 400
         options = {"n_iter": n_iter, "cv": cv, "random_state": random_state}
         return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv)
-    
-    
+
+
     @app.post("/api/v1/random-forest/terrazas")
     @require_token
     def fit_random_forest_terraces():
-        # Emplea el CSV versionado en ejemplos para reproducir la práctica sin subir fichero.
+        """POST JSON: ejecuta Random Forest sobre los datos sintéticos incluidos.
+
+        El cliente envía target, reference y opciones del bosque; no adjunta
+        datos. La respuesta incluye métricas y archivos creados para el run.
+        """
+        # Usa el CSV de ejemplo del proyecto; el cliente solo envía opciones y referencia.
         body = request.get_json(silent=True)
         if body is None:
             body = {}
@@ -311,6 +371,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
     @app.post("/api/v1/random-forest/csv")
     @require_token
     def fit_random_forest_csv():
+        """POST multipart: ejecuta Random Forest sobre un CSV del cliente."""
         # Ruta multipart para entrenar con un CSV del cliente usando el mismo pipeline.
         reference, error = validate_reference(request.form.get("reference"))
         if error:
@@ -326,6 +387,86 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         if len(raw) > 4 * 1024 * 1024:
             return jsonify(error="El CSV supera el límite de 4 MB."), 413
         return run_random_forest(app, output_root, reference, raw, options, uploaded.filename)
+
+    def fit_knn_csv(method):
+        """Valida el formulario común y ejecuta el tipo de validación KNN pedido."""
+        reference, error = validate_reference(request.form.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+        uploaded = request.files.get("file")
+        if uploaded is None or not uploaded.filename:
+            return jsonify(error="Adjunta el CSV en el campo multipart 'file'."), 400
+        raw_csv = uploaded.read()
+        if len(raw_csv) > 4 * 1024 * 1024:
+            return jsonify(error="El CSV supera el límite de 4 MB."), 413
+
+        try:
+            options = {
+                "target": request.form.get("target", "y"),
+                "n_neighbors": parse_integer("n_neighbors", 5, 1, 50, request.form),
+                "random_state": parse_integer("random_state", 42, 0, 2**32 - 1, request.form),
+                "cv": parse_integer("cv", 5, 2, 10, request.form),
+            }
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        if not options["target"].strip():
+            return jsonify(error="target debe ser el nombre de una columna."), 400
+        return run_knn_cross_validation(output_root, reference, raw_csv, options, method)
+
+    @app.post("/api/v1/regresion/knn/kfold")
+    @require_token
+    def fit_knn_kfold():
+        """POST multipart: obtiene predicciones de validación cruzada K-Fold."""
+        # Esta ruta agrupa las filas en K partes y repite el ajuste K veces.
+        return fit_knn_csv("kfold")
+
+    @app.post("/api/v1/regresion/knn/leave-one-out")
+    @require_token
+    def fit_knn_leave_one_out():
+        """POST multipart: obtiene predicciones Leave-One-Out para KNN."""
+        # Esta ruta deja una fila fuera en cada turno y la usa como validación.
+        return fit_knn_csv("leave_one_out")
+
+    def fit_tabular_regressor_csv(model_name):
+        """Prepara la petición CSV compartida por SVR y los dos modelos boosting.
+
+        Una sola función evita repetir validaciones idénticas. Las rutas
+        concretas solo eligen model_name; las opciones y el archivo viajan en
+        multipart/form-data y luego se delegan a api_functions.py.
+        """
+        reference, error = validate_reference(request.form.get("reference"))
+        if error:
+            return jsonify(error=error), 400
+        try:
+            options = regression_model_options(request.form, model_name)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        uploaded = request.files.get("file")
+        if uploaded is None or not uploaded.filename:
+            return jsonify(error="Adjunta el CSV en el campo multipart 'file'."), 400
+        raw_csv = uploaded.read()
+        if len(raw_csv) > 4 * 1024 * 1024:
+            return jsonify(error="El CSV supera el límite de 4 MB."), 413
+        return run_tabular_regressor(app, output_root, reference, raw_csv,
+                                     options, model_name)
+
+    @app.post("/api/v1/regresion/svm/csv")
+    @require_token
+    def fit_svm_csv():
+        """POST multipart: ajusta SVR; recibe CSV, target y opciones del modelo."""
+        return fit_tabular_regressor_csv("svm")
+
+    @app.post("/api/v1/regresion/boosting/adaboost/csv")
+    @require_token
+    def fit_adaboost_csv():
+        """POST multipart: ajusta AdaBoostRegressor al CSV aportado."""
+        return fit_tabular_regressor_csv("adaboost")
+
+    @app.post("/api/v1/regresion/boosting/gradient/csv")
+    @require_token
+    def fit_gradient_boosting_csv():
+        """POST multipart: ajusta GradientBoostingRegressor al CSV aportado."""
+        return fit_tabular_regressor_csv("gradient_boosting")
 
     return app
 

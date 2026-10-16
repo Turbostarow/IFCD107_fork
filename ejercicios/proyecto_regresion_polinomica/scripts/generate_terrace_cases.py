@@ -25,8 +25,10 @@ FIELDS = [
 
 
 def main():
+    # Un generador con semilla fija produce las mismas filas cada vez que se ejecuta.
     rng = random.Random(SEED)
     rows = []
+    # Cada vuelta crea un expediente de ejemplo y lo añade a la lista para CSV.
     for i in range(1, N_CASES + 1):
         district = rng.choice(DISTRICTS)
         # Las proporciones solo dan variedad al ejemplo; no son frecuencias reales
@@ -52,8 +54,11 @@ def main():
             "y": days,
         })
 
+    # __file__ apunta a este script; parents[1] es la carpeta del proyecto.
+    # Así el CSV se guarda en el mismo lugar aunque el script se ejecute desde otra carpeta.
     out = Path(__file__).resolve().parents[1] / "ejemplos" / "datos_ejemplo.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
+    # DictWriter convierte cada diccionario de `rows` en una fila con estas columnas.
     with out.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
@@ -62,4 +67,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # Este bloque solo se ejecuta al lanzar directamente este archivo con Python.
     main()

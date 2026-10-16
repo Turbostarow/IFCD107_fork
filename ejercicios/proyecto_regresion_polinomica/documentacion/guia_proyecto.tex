@@ -517,8 +517,8 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
                 return jsonify(error="w debe contener pesos finitos no negativos, uno por observación."), 400
         options = {"n_iter": n_iter, "cv": cv, "random_state": random_state}
         return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv)
-    
-    
+
+
     @app.post("/api/v1/random-forest/terrazas")
     @require_token
     def fit_random_forest_terraces():
@@ -793,8 +793,8 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
             # Guardar bytes originales preserva columnas extra, orden, formato y
             # encabezados exactamente como los envió el cliente.
             input_path.write_bytes(raw_csv)
-        
-        
+
+
         X_train, X_test, y_train, y_test = train_test_split(
             x, y, test_size=0.20, random_state=42
         )

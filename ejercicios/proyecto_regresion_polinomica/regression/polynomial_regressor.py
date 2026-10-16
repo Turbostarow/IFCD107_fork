@@ -17,6 +17,8 @@ from sklearn.pipeline import Pipeline
 
 @dataclass
 class FitResult:
+    """Agrupa las predicciones y mediciones que produce un ajuste."""
+
     coefficients: np.ndarray
     x: np.ndarray
     predicted: np.ndarray
@@ -33,6 +35,8 @@ class PolynomialRegressor:
     """Ajusta un polinomio por mínimos cuadrados usando numpy."""
 
     def __init__(self, X_train, X_test, y_train, y_test,degree: int = 2):
+        # Guardamos por separado entrenamiento y prueba: solo el primero calcula
+        # el polinomio, mientras que el segundo sirve para comprobar el resultado.
         if isinstance(degree, bool) or not isinstance(degree, int) or not 1 <= degree <= 10:
             raise ValueError("degree debe estar entre 1 y 10.")
         self.degree = degree
@@ -109,6 +113,8 @@ class PolynomialRegressor:
         residuals = y_t - predicted
         # R² no está definido si y es constante. En el caso perfecto se informa 1;
         # si no lo es, se informa 0 como valor neutro y se conserva RMSE/MAE.
+        # R² compara el error del modelo con el error de predecir siempre la media.
+        # RMSE y MAE resumen el tamaño típico de los errores en las unidades de y.
         ss_res = float(np.sum(residuals ** 2))
         ss_tot = float(np.sum((y_t - np.mean(y_t)) ** 2))
         r2 = 1.0 if ss_tot == 0 and ss_res == 0 else (0.0 if ss_tot == 0 else 1 - ss_res / ss_tot)
@@ -171,6 +177,8 @@ class PolynomialRegressor:
         path = Path(path)
         # Ordenar solo para dibujar la curva evita segmentos zigzagueantes cuando
         # las observaciones llegan desordenadas; el ajuste usa todas las filas.
+        # matplotlib une puntos en el orden recibido; ordenar x dibuja una línea
+        # continua aunque las observaciones se hayan recibido desordenadas.
         order = np.argsort(x)
         fig, ax = plt.subplots(figsize=(9, 5.5))
         ax.scatter(x, y, label="Observaciones", color="#1f77b4", alpha=0.85)

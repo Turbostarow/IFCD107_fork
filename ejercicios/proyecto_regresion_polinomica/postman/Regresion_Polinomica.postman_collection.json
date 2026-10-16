@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "API de regresión polinómica y Random Forest",
-    "description": "Health, autenticación Bearer, regresión polinómica, RandomizedSearchCV y Random Forest (demo de terrazas y CSV multipart). Ejecuta Obtener token antes de entrenar; después puedes usar Run collection para lanzar las solicitudes de entrenamiento.",
+    "name": "API de regresión polinómica, KNN, SVM y ensamblados",
+    "description": "Health, autenticación Bearer, regresión polinómica, KNN, Random Forest, SVR, AdaBoostRegressor y GradientBoostingRegressor. Ejecuta Obtener token antes de las solicitudes de entrenamiento.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -260,6 +260,99 @@
       }
     },
     {
+      "name": "KNN - validación cruzada K-Fold (5.000 filas)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reference",
+              "value": "knn_5000_kfold_demo",
+              "type": "text"
+            },
+            {
+              "key": "target",
+              "value": "y",
+              "type": "text"
+            },
+            {
+              "key": "n_neighbors",
+              "value": "5",
+              "type": "text"
+            },
+            {
+              "key": "cv",
+              "value": "5",
+              "type": "text"
+            },
+            {
+              "key": "random_state",
+              "value": "42",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../ejemplos/datos_knn_5000.csv"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/knn/kfold"
+      }
+    },
+    {
+      "name": "KNN - validación Leave-One-Out (5.000 filas)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reference",
+              "value": "knn_5000_loo_demo",
+              "type": "text"
+            },
+            {
+              "key": "target",
+              "value": "y",
+              "type": "text"
+            },
+            {
+              "key": "n_neighbors",
+              "value": "5",
+              "type": "text"
+            },
+            {
+              "key": "random_state",
+              "value": "42",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../ejemplos/datos_knn_5000.csv"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/knn/leave-one-out"
+      }
+    },
+    {
       "name": "Random Forest - cargar CSV",
       "request": {
         "method": "POST",
@@ -311,6 +404,244 @@
           ]
         },
         "url": "{{baseUrl}}/api/v1/random-forest/csv"
+      }
+    },
+    {
+      "name": "SVR - regresión SVM (CSV)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"SVR - regresión SVM (CSV) responde correctamente\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"last_run_id\", pm.response.json().run_id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reference",
+              "value": "svm_regresion_demo",
+              "type": "text"
+            },
+            {
+              "key": "target",
+              "value": "y",
+              "type": "text"
+            },
+            {
+              "key": "kernel",
+              "value": "rbf",
+              "type": "text"
+            },
+            {
+              "key": "C",
+              "value": "1.0",
+              "type": "text"
+            },
+            {
+              "key": "epsilon",
+              "value": "0.1",
+              "type": "text"
+            },
+            {
+              "key": "gamma",
+              "value": "scale",
+              "type": "text"
+            },
+            {
+              "key": "degree",
+              "value": "3",
+              "type": "text"
+            },
+            {
+              "key": "test_size",
+              "value": "0.2",
+              "type": "text"
+            },
+            {
+              "key": "random_state",
+              "value": "42",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../ejemplos/datos_ejemplo_complejo.csv"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/svm/csv"
+      }
+    },
+    {
+      "name": "AdaBoostRegressor - cargar CSV",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"AdaBoostRegressor - cargar CSV responde correctamente\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"last_run_id\", pm.response.json().run_id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reference",
+              "value": "adaboost_regresion_demo",
+              "type": "text"
+            },
+            {
+              "key": "target",
+              "value": "y",
+              "type": "text"
+            },
+            {
+              "key": "n_estimators",
+              "value": "100",
+              "type": "text"
+            },
+            {
+              "key": "max_depth",
+              "value": "2",
+              "type": "text"
+            },
+            {
+              "key": "learning_rate",
+              "value": "0.05",
+              "type": "text"
+            },
+            {
+              "key": "loss",
+              "value": "linear",
+              "type": "text"
+            },
+            {
+              "key": "test_size",
+              "value": "0.2",
+              "type": "text"
+            },
+            {
+              "key": "random_state",
+              "value": "42",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../ejemplos/datos_ejemplo_complejo.csv"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/boosting/adaboost/csv"
+      }
+    },
+    {
+      "name": "GradientBoostingRegressor - cargar CSV",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"GradientBoostingRegressor - cargar CSV responde correctamente\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"last_run_id\", pm.response.json().run_id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reference",
+              "value": "gradient_boosting_regresion_demo",
+              "type": "text"
+            },
+            {
+              "key": "target",
+              "value": "y",
+              "type": "text"
+            },
+            {
+              "key": "n_estimators",
+              "value": "100",
+              "type": "text"
+            },
+            {
+              "key": "max_depth",
+              "value": "2",
+              "type": "text"
+            },
+            {
+              "key": "learning_rate",
+              "value": "0.05",
+              "type": "text"
+            },
+            {
+              "key": "loss",
+              "value": "squared_error",
+              "type": "text"
+            },
+            {
+              "key": "subsample",
+              "value": "1.0",
+              "type": "text"
+            },
+            {
+              "key": "test_size",
+              "value": "0.2",
+              "type": "text"
+            },
+            {
+              "key": "random_state",
+              "value": "42",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../ejemplos/datos_ejemplo_complejo.csv"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/boosting/gradient/csv"
       }
     }
   ]

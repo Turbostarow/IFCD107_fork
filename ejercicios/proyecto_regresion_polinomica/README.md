@@ -25,7 +25,7 @@ Para regenerar el conjunto determinista de 1.000 filas: `python scripts/generate
 
 La API mantiene endpoints en `app.py`, funciones auxiliares compartidas en `api_functions.py` y clases de algoritmo dentro de `regression/`. Los artefactos se crean bajo `runs/<reference>/` en `graficas/`, `csv_entrada/`, `logs_salida/`, `csv_salida/` y `modelos/`. El registro central `runs/_auditoria/api_audit.jsonl` conserva una entrada por petición con fecha UTC, método, ruta, estado, usuario, IP y huella SHA-256 truncada del token. Los logs nunca guardan el token Bearer completo. Si se usa un proxy inverso, `REMOTE_ADDR` reflejará el proxy salvo que se configure confianza explícita para proxies conocidos. El modelo se guarda como `.pkt`; carga solo archivos de confianza porque utiliza pickle.
 
-Endpoints: `GET /api/v1/health` (público), `POST /api/v1/auth/token` (emite token), `POST /api/v1/regresion/polinomica`, `POST /api/v1/regresion/polinomica/csv`, `POST /api/v1/random-forest/terrazas` y `POST /api/v1/random-forest/csv` (rutas de entrenamiento requieren Bearer). Los tokens expiran por defecto en una hora; configura `API_TOKEN_TTL_SECONDS` para cambiarlo.
+Endpoints: `GET /api/v1/health` (público), `POST /api/v1/auth/token` (emite token), regresión polinómica JSON/CSV y búsqueda, KNN con K-Fold/Leave-One-Out, Random Forest desde CSV o desde el ejemplo, y los nuevos regresores SVR, AdaBoost y Gradient Boosting desde CSV. Todas las rutas de entrenamiento requieren Bearer. Los tokens expiran por defecto en una hora; configura `API_TOKEN_TTL_SECONDS` para cambiarlo.
 
 
 ## Random Forest
@@ -46,3 +46,15 @@ Ejemplo para la ruta incluida:
 ```
 
 `expediente_id` se conserva para identificar predicciones pero no se usa como predictor. Se procesan variables numéricas y categóricas; los artefactos se guardan por referencia como en la regresión polinómica. El conjunto de terrazas es sintético. La colección Postman incluye solicitudes para las dos rutas.
+
+## SVR y boosting para regresión
+
+Los modelos nuevos siguen el mismo contrato CSV y guardado de artefactos:
+
+- `POST /api/v1/regresion/svm/csv` usa `SVR` dentro de un pipeline que imputa valores ausentes, codifica categorías y escala variables numéricas.
+- `POST /api/v1/regresion/boosting/adaboost/csv` usa `AdaBoostRegressor` con árboles base.
+- `POST /api/v1/regresion/boosting/gradient/csv` usa `GradientBoostingRegressor`.
+
+Las tres rutas reciben `multipart/form-data` con `reference`, `target`, opciones del modelo y el fichero `file`. Requieren token Bearer y aceptan un CSV de hasta 4 MB. Las salidas mantienen la estructura del proyecto: CSV de entrada y predicciones, gráfico observado frente a predicho, modelo `.pkt`, log y métricas R², RMSE, MAE y sesgo. El preprocesamiento se ajusta dentro del pipeline solo con las filas de entrenamiento.
+
+Cada estimador está en su módulo de `regression/`: `svm_regressor.py`, `adaboost_regressor.py` y `gradient_boosting_regressor.py`. `tabular_preprocessing.py` centraliza la imputación/codificación común y el escalado específico que necesita SVR. La colección Postman incluye una solicitud de ejemplo para cada endpoint nuevo usando el CSV sintético incluido.

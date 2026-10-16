@@ -21,6 +21,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 @dataclass
 class RandomForestResult:
+    """Paquete con el pipeline entrenado, métricas y tablas para la respuesta."""
     model: Pipeline
     metrics: dict
     predictions: pd.DataFrame
@@ -71,6 +72,8 @@ class RandomForestRegressorModel:
                 non_empty = X[column].notna() & (X[column].astype(str).str.strip() != "")
                 if non_empty.any() and converted[non_empty].notna().all():
                     X[column] = converted
+        # pandas reconoce qué columnas ya son números; las demás se tratan como
+        # categorías de texto y se convierten luego a indicadores 0/1.
         numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
         categorical_columns = [col for col in feature_columns if col not in numeric_columns]
         # Cada grupo de columnas necesita su propio tratamiento de valores ausentes.
@@ -99,6 +102,7 @@ class RandomForestRegressorModel:
         predicted = pipeline.predict(X.iloc[test_idx])
         observed = y.iloc[test_idx].to_numpy(dtype=float)
         residuals = observed - predicted
+        # Medimos las predicciones frente a los valores reales que dejamos aparte.
         metrics = {
             "r2": float(r2_score(observed, predicted)),
             "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
@@ -127,6 +131,8 @@ class RandomForestRegressorModel:
 
     @staticmethod
     def write_plot(path: Path, result: RandomForestResult):
+        # El panel izquierdo compara predicciones con realidad; el derecho resume
+        # qué columnas transformadas tuvieron mayor influencia en el bosque.
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         observed = result.predictions["y_observado"].to_numpy()
         predicted = result.predictions["y_predicho"].to_numpy()
