@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 from api_functions import (
     parse_csv, parse_json_points, random_forest_options, run_model,
-    run_random_forest, run_polynomial_search, validate_reference,
+    run_random_forest, run_polynomial_search, validate_reference,parse_integer
 )
 
 
@@ -259,26 +259,10 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         if error:
             return jsonify(error=error), 400
 
-        def parse_integer(name, default, minimum, maximum):
-            # Los números JSON llegan como int; los campos de un formulario llegan
-            # como texto. Convertimos ambos formatos y después aplicamos el límite.
-            raw = source.get(name, default)
-            try:
-                if isinstance(raw, bool) or (isinstance(raw, str) and not raw.strip()):
-                    raise ValueError
-                parsed = int(raw)
-                if isinstance(raw, float) and raw != parsed:
-                    raise ValueError
-            except (TypeError, ValueError):
-                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.") from None
-            if not minimum <= parsed <= maximum:
-                raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.")
-            return parsed
-
         try:
-            n_iter = parse_integer("n_iter", 20, 1, 80)
-            cv = parse_integer("cv", 5, 2, 10)
-            random_state = parse_integer("random_state", 42, 0, 2**32 - 1)
+            n_iter = parse_integer("n_iter", 20, 1, 80,source)
+            cv = parse_integer("cv", 5, 2, 10,source)
+            random_state = parse_integer("random_state", 42, 0, 2**32 - 1,source)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
         if cv >= int(len(x) * 0.8):

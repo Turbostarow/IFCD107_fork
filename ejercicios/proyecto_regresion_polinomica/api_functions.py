@@ -12,6 +12,7 @@ from sklearn.model_selection import train_test_split
 import json
 import numpy as np
 from flask import g, jsonify
+from scipy.stats import pearsonr
 
 from regression.polynomial_regressor import PolynomialRegressor,build_polynomial_search
 from regression.random_forest_regressor import RandomForestRegressorModel
@@ -38,6 +39,22 @@ def parse_json_points(points):
     except (TypeError, ValueError, KeyError, IndexError):
         raise ValueError("Cada elemento de data debe tener valores numéricos x e y.") from None
     return validate_xy(x, y)
+
+def parse_integer(name, default, minimum, maximum,source    ):
+    # Los números JSON llegan como int; los campos de un formulario llegan
+    # como texto. Convertimos ambos formatos y después aplicamos el límite.
+    raw = source.get(name, default)
+    try:
+        if isinstance(raw, bool) or (isinstance(raw, str) and not raw.strip()):
+            raise ValueError
+        parsed = int(raw)
+        if isinstance(raw, float) and raw != parsed:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.") from None
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.")
+    return parsed
 
 def parse_csv(text):
     # DictReader permite conservar columnas contextuales del caso de terrazas,
@@ -305,10 +322,13 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
         predicted = search.best_estimator_.predict(X_test)
         observed = y[test_idx]
         residuals = observed - predicted
+        pearson, pearson_pvalue = pearsonr(observed, predicted)
         metrics = {
             "r2": float(r2_score(observed, predicted)),
             "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
             "mae": float(mean_absolute_error(observed, predicted)),
+            "pearson": float(pearson),
+            "bias": float(np.mean(observed - predicted)),
         }
         csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
         np.savetxt(csv_path, np.column_stack((x[test_idx], observed, predicted, residuals)),
@@ -334,6 +354,9 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
             "best_parameters": search.best_params_,
             "best_cv_rmse": float(np.sqrt(-search.best_score_)),
             "metrics": metrics,
+            "min_observed":np.min(observed),
+            "max_observed":np.max(observed),
+            "mean_observed": np.mean(observed),
             "n_rows_input": int(len(x)),
             "n_rows_train": int(len(train_idx)),
             "n_rows_test": int(len(test_idx)),
