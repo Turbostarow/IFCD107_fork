@@ -204,6 +204,51 @@
       }
     },
     {
+      "name": "RandomizedSearchCV + documentación Ollama",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"RandomizedSearchCV + Ollama responde correctamente\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  var body = pm.response.json();",
+              "  pm.collectionVariables.set(\"last_run_id\", body.run_id);",
+              "  pm.test(\"La respuesta incluye documentación Ollama o un error de disponibilidad\", function () {",
+              "    pm.expect(Object.prototype.hasOwnProperty.call(body, \"ollama_documentation\") || Object.prototype.hasOwnProperty.call(body, \"ollama_documentation_error\")).to.be.true;",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reference\": \"polynomial_random_search_ollama_demo\",\n  \"n_iter\": 20,\n  \"cv\": 5,\n  \"random_state\": 42,\n  \"w\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],\n  \"data\": [\n    {\"x\": -9, \"y\": 82.4},\n    {\"x\": -8, \"y\": 65.1},\n    {\"x\": -7, \"y\": 49.3},\n    {\"x\": -6, \"y\": 36.2},\n    {\"x\": -5, \"y\": 25.4},\n    {\"x\": -4, \"y\": 16.8},\n    {\"x\": -3, \"y\": 10.2},\n    {\"x\": -2, \"y\": 5.7},\n    {\"x\": -1, \"y\": 2.9},\n    {\"x\": 0, \"y\": 1.2},\n    {\"x\": 1, \"y\": 1.8},\n    {\"x\": 2, \"y\": 5.9},\n    {\"x\": 3, \"y\": 10.8},\n    {\"x\": 4, \"y\": 17.3},\n    {\"x\": 5, \"y\": 26.1},\n    {\"x\": 6, \"y\": 36.5},\n    {\"x\": 7, \"y\": 49.7},\n    {\"x\": 8, \"y\": 65.4},\n    {\"x\": 9, \"y\": 82.9},\n    {\"x\": 10, \"y\": 102.6}\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/polinomica/randomizedsearch/ollama"
+      }
+    },
+    {
       "name": "RandomizedSearchCV - cargar CSV",
       "event": [
         {

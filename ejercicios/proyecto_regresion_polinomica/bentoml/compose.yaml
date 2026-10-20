@@ -1,0 +1,39 @@
+services:
+  train-polynomial-model:
+    build:
+      context: ..
+      dockerfile: bentoml/Dockerfile
+    command: ["python", "train_model.py"]
+    environment:
+      BENTOML_HOME: /var/lib/bentoml
+      POLYNOMIAL_DEGREE: "2"
+      POLYNOMIAL_RANDOM_STATE: "42"
+    volumes:
+      - bentoml_model_store:/var/lib/bentoml
+    restart: "no"
+
+  polynomial-inference:
+    build:
+      context: ..
+      dockerfile: bentoml/Dockerfile
+    command:
+      - bentoml
+      - serve
+      - service:PolynomialRegression
+      - --host
+      - 0.0.0.0
+      - --port
+      - "3000"
+    environment:
+      BENTOML_HOME: /var/lib/bentoml
+    depends_on:
+      train-polynomial-model:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+    volumes:
+      - bentoml_model_store:/var/lib/bentoml
+    restart: unless-stopped
+
+volumes:
+  bentoml_model_store:

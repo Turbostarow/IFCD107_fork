@@ -58,3 +58,47 @@ Los modelos nuevos siguen el mismo contrato CSV y guardado de artefactos:
 Las tres rutas reciben `multipart/form-data` con `reference`, `target`, opciones del modelo y el fichero `file`. Requieren token Bearer y aceptan un CSV de hasta 4 MB. Las salidas mantienen la estructura del proyecto: CSV de entrada y predicciones, gráfico observado frente a predicho, modelo `.pkt`, log y métricas R², RMSE, MAE y sesgo. El preprocesamiento se ajusta dentro del pipeline solo con las filas de entrenamiento.
 
 Cada estimador está en su módulo de `regression/`: `svm_regressor.py`, `adaboost_regressor.py` y `gradient_boosting_regressor.py`. `tabular_preprocessing.py` centraliza la imputación/codificación común y el escalado específico que necesita SVR. La colección Postman incluye una solicitud de ejemplo para cada endpoint nuevo usando el CSV sintético incluido.
+
+## Docker y Ollama
+
+El proyecto incluye un contenedor Flask, un servicio Ollama y un paso de inicialización que descarga el modelo configurado. Ollama no publica su puerto al host; la API web es el único servicio expuesto. Los artefactos de regresión se guardan en un volumen Docker persistente y los modelos Ollama se descargan en la carpeta local `ollama/`.
+
+1. Copia `.env.example` a `.env` y configura `API_ADMIN_PASSWORD` y `API_TOKEN_SECRET` con valores aleatorios propios. No compartas `.env`.
+2. Desde la raíz del proyecto ejecuta:
+
+```powershell
+docker compose up --build -d
+```
+
+La primera ejecución descarga la imagen de Ollama y el modelo (por defecto `qwen2.5:3b`), por lo que puede tardar y ocupar varios GB. Para elegir otro modelo, cambia `OLLAMA_MODEL` en `.env` y recrea los servicios. La API queda disponible en `http://localhost:5000`; cambia `API_PORT` para usar otro puerto del host.
+
+Para pedir ayuda al modelo, primero obtén el token con `POST /api/v1/auth/token` y luego envía `POST /api/v1/ai/chat` con `Authorization: Bearer <token>` y JSON como `{"prompt":"¿Cómo interpreto un R² negativo?"}`. Esta ruta usa Ollama y devuelve `model` y `answer`; las rutas de entrenamiento existentes no dependen del chat.
+
+Comandos útiles:
+
+```powershell
+docker compose logs -f api ollama
+docker compose down
+```
+
+`docker compose down` conserva el volumen de resultados y la carpeta local `ollama/`. Para borrar el volumen de resultados ejecuta `docker compose down -v`; para liberar el espacio de los modelos, detén Compose y elimina manualmente la carpeta `ollama/`.
+
+
+
+La variante `POST /api/v1/regresion/polinomica/randomizedsearch/ollama` ejecuta la misma búsqueda y agrega `ollama_documentation` a la respuesta. Si Ollama no está disponible, conserva las métricas y devuelve `ollama_documentation_error`. La colección Postman incluye una solicitud JSON para esta ruta.
+
+## Regresión polinómica servida con BentoML y Docker
+
+El componente autónomo `bentoml/` añade un pipeline de regresión polinómica sin modificar la API Flask ni el servicio de Ollama. Desde esta raíz, inicia el entrenamiento y el servidor con:
+
+```powershell
+docker compose -f bentoml/compose.yaml up --build
+```
+
+El servicio lee `ejemplos/datos_ejemplo_xy.csv`, evalúa sobre una partición de 200 filas, registra el pipeline de grado 2 y expone `POST http://localhost:3000/predict`. Para enviar una petición desde PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/predict -ContentType 'application/json' -Body '{"x":[40,50,60]}'
+```
+
+La ejecución verificada con este CSV obtuvo R² = 0,9287, RMSE = 6,9001 y MAE = 5,5080 en el conjunto reservado. Una llamada con `x=[40,50,60]` devolvió aproximadamente `[45.2401, 56.6759, 70.0502]`. Son resultados sobre datos sintéticos de aprendizaje. Importa `bentoml/BentoML_Polynomial_Regression.postman_collection.json` para repetir la petición. Para parar el servicio, ejecuta `docker compose -f bentoml/compose.yaml down`.

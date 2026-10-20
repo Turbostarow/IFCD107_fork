@@ -550,9 +550,11 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
         logger.removeHandler(handler)
 
 
-def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None):
+def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None, document_with_ollama=False):
     """Separa los datos, busca hiperparámetros y evalúa el mejor modelo en prueba."""
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from regression.polynomial_regressor import PolynomialSearchEstimator, PolynomialSearchEstimatorOllama
+    from ollama_service import OllamaServiceError
     from sklearn.model_selection import train_test_split
     import pickle
     import matplotlib.pyplot as plt
@@ -593,7 +595,8 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
         # El pipeline prueba combinaciones usando validación cruzada dentro del
         # conjunto de entrenamiento y vuelve a ajustar la ganadora (refit=True).
         search = build_polynomial_search(
-            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"]
+            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"],
+            estimator_class=(PolynomialSearchEstimatorOllama if document_with_ollama else PolynomialSearchEstimator),
         )
         X_train = x[train_idx].reshape(-1, 1)
         X_test = x[test_idx].reshape(-1, 1)
@@ -654,6 +657,22 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
                 "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
             },
         }
+        if document_with_ollama:
+            documentation_input = {
+                "best_parameters": search.best_params_,
+                "best_cv_rmse": metadata["best_cv_rmse"],
+                "test_metrics": metrics,
+                "n_rows_input": int(len(x)),
+                "n_rows_train": int(len(train_idx)),
+                "n_rows_test": int(len(test_idx)),
+            }
+            try:
+                metadata["ollama_documentation"] = search.best_estimator_.named_steps[
+                    "polynomial"
+                ].document_results(documentation_input)
+            except OllamaServiceError as exc:
+                logger.warning("Ollama no pudo documentar los resultados: %s", exc)
+                metadata["ollama_documentation_error"] = str(exc)
         best_estimator_params = search.best_estimator_.named_steps["polynomial"].get_params(deep=False)
         logger.info(
             "RandomizedSearchCV completado param_distributions=%s best_estimator_params=%s best=%s metrics=%s",
@@ -1026,3 +1045,5 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
     finally:
         handler.close()
         logger.removeHandler(handler)
+
+

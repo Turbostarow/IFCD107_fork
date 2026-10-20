@@ -252,11 +252,11 @@ POLYNOMIAL_PARAM_DISTRIBUTIONS = {
 }
 
 
-def build_polynomial_search(n_iter=20, cv=5, random_state=42, param_distributions=None):
+def build_polynomial_search(n_iter=20, cv=5, random_state=42, param_distributions=None, estimator_class=PolynomialSearchEstimator):
     """Construye la búsqueda reproducible para una variable x."""
     # Pipeline reúne el estimador bajo un nombre estable para que sus parámetros
     # puedan escribirse en el diccionario de búsqueda con el prefijo `polynomial__`.
-    pipeline = Pipeline([("polynomial", PolynomialSearchEstimator())])
+    pipeline = Pipeline([("polynomial", estimator_class())])
     return RandomizedSearchCV(
         estimator=pipeline,
         param_distributions=(param_distributions if param_distributions is not None
@@ -267,3 +267,27 @@ def build_polynomial_search(n_iter=20, cv=5, random_state=42, param_distribution
         scoring="neg_mean_squared_error",
         refit=True,
     )
+
+class PolynomialSearchEstimatorOllama(PolynomialSearchEstimator):
+    """Search estimator that can explain the final search report with Ollama.
+
+    Ollama is called only when ``document_results`` is explicitly invoked, not
+    from ``fit``. This keeps cross-validation folds free of LLM requests.
+    """
+
+    def document_results(self, results: dict) -> dict[str, str]:
+        """Return a short natural-language explanation of supplied metrics."""
+        import json
+        from ollama_service import ask_ollama
+
+        prompt = (
+            "Documenta los resultados de una búsqueda de regresión polinómica. "
+            "Resume el grado y parámetros seleccionados, explica el RMSE de "
+            "validación cruzada y las métricas del conjunto de prueba, y señala "
+            "cualquier cautela visible. Usa únicamente los datos proporcionados; "
+            "no inventes resultados ni afirmes causalidad. Responde en español "
+            "en formato breve con subtítulos.\n\nResultados:\n"
+            + json.dumps(results, ensure_ascii=False, sort_keys=True, default=str)
+        )
+        return ask_ollama(prompt)
+

@@ -1,0 +1,80 @@
+{
+  "info": {
+    "_postman_id": "819f14d7-53a3-4a02-992d-707ea3c0ac01",
+    "name": "BentoML - Regresion Polinomica",
+    "description": "Peticion de inferencia para el servicio BentoML del proyecto IFCD107. El servicio se inicia con docker compose -f bentoml/compose.yaml up --build.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Predecir valores con el modelo polinomico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"x\": [40, 50, 60]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "El servicio devuelve una prediccion por cada valor x junto con el grado, las filas de entrenamiento y las metricas del conjunto de prueba."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Devuelve tres predicciones numericas finitas', function () {",
+              "  pm.expect(body.predictions).to.be.an('array').with.lengthOf(3);",
+              "  body.predictions.forEach(function (value) { pm.expect(value).to.be.a('number').and.to.be.finite; });",
+              "});",
+              "pm.test('Informa el grado, el tamaño de entrenamiento y las metricas', function () {",
+              "  pm.expect(body.degree).to.eql(2);",
+              "  pm.expect(body.training_rows).to.eql(1000);",
+              "  pm.expect(body.holdout_metrics).to.be.an('object');",
+              "  pm.expect(body.holdout_metrics.r2).to.be.a('number');",
+              "  pm.expect(body.holdout_metrics.rmse).to.be.a('number');",
+              "  pm.expect(body.holdout_metrics.mae).to.be.a('number');",
+              "});",
+              "pm.test('Coincide con la ejecucion reproducible de ejemplo', function () {",
+              "  const expected = [45.2401205523, 56.6759420253, 70.0501806083];",
+              "  body.predictions.forEach(function (value, index) { pm.expect(value).to.be.closeTo(expected[index], 0.001); });",
+              "  pm.expect(body.holdout_metrics.r2).to.be.closeTo(0.9287278352, 0.000001);",
+              "  pm.expect(body.holdout_metrics.rmse).to.be.closeTo(6.9001388186, 0.000001);",
+              "  pm.expect(body.holdout_metrics.mae).to.be.closeTo(5.5079795652, 0.000001);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
