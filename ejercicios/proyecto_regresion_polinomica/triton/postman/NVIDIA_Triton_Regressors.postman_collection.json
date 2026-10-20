@@ -1,0 +1,44 @@
+{
+  "info": {
+    "_postman_id": "9054e98b-39af-4c50-b831-5654e0eac7aa",
+    "name": "NVIDIA Triton - IFCD107 Regressors",
+    "description": "Inference requests for the linear, polynomial and random forest models. Train and start Triton with docker compose -f triton/compose.yaml up --build.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Linear regression",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"inputs\": [{\n    \"name\": \"X\", \"shape\": [3, 1], \"datatype\": \"FP32\", \"data\": [40, 50, 60]\n  }],\n  \"outputs\": [{\"name\": \"Y\"}]\n}", "options": {"raw": {"language": "json"}}},
+        "url": {"raw": "{{baseUrl}}/v2/models/linear_regression/infer", "host": ["{{baseUrl}}"], "path": ["v2", "models", "linear_regression", "infer"]}
+      },
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('HTTP 200', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('Returns three finite predictions', function () { const values = body.outputs[0].data; pm.expect(values).to.be.an('array').with.lengthOf(3); values.forEach(function (v) { pm.expect(v).to.be.a('number').and.to.be.finite; }); });"]}}],
+      "response": []
+    },
+    {
+      "name": "Polynomial regression",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"inputs\": [{\n    \"name\": \"X\", \"shape\": [3, 1], \"datatype\": \"FP32\", \"data\": [40, 50, 60]\n  }],\n  \"outputs\": [{\"name\": \"Y\"}]\n}", "options": {"raw": {"language": "json"}}},
+        "url": {"raw": "{{baseUrl}}/v2/models/polynomial_regression/infer", "host": ["{{baseUrl}}"], "path": ["v2", "models", "polynomial_regression", "infer"]}
+      },
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('HTTP 200', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('Returns three finite predictions', function () { const values = body.outputs[0].data; pm.expect(values).to.be.an('array').with.lengthOf(3); values.forEach(function (v) { pm.expect(v).to.be.a('number').and.to.be.finite; }); });"]}}],
+      "response": []
+    },
+    {
+      "name": "Random forest regression (synthetic terrace example)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"inputs\": [\n    {\"name\": \"distrito\", \"shape\": [1, 1], \"datatype\": \"BYTES\", \"data\": [\"Puente de Vallecas\"]},\n    {\"name\": \"tipo_tramite\", \"shape\": [1, 1], \"datatype\": \"BYTES\", \"data\": [\"alta\"]},\n    {\"name\": \"superficie_solicitada_m2\", \"shape\": [1, 1], \"datatype\": \"FP32\", \"data\": [72.1]},\n    {\"name\": \"requerimientos_documentacion\", \"shape\": [1, 1], \"datatype\": \"FP32\", \"data\": [0]},\n    {\"name\": \"mes_presentacion\", \"shape\": [1, 1], \"datatype\": \"FP32\", \"data\": [2]},\n    {\"name\": \"x\", \"shape\": [1, 1], \"datatype\": \"FP32\", \"data\": [58.36]}\n  ],\n  \"outputs\": [{\"name\": \"Y\"}]\n}", "options": {"raw": {"language": "json"}}},
+        "url": {"raw": "{{baseUrl}}/v2/models/random_forest_regression/infer", "host": ["{{baseUrl}}"], "path": ["v2", "models", "random_forest_regression", "infer"]}
+      },
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('HTTP 200', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('Returns one finite prediction', function () { const values = body.outputs[0].data; pm.expect(values).to.be.an('array').with.lengthOf(1); pm.expect(values[0]).to.be.a('number').and.to.be.finite; });"]}}],
+      "response": []
+    }
+  ],
+  "variable": [{"key": "baseUrl", "value": "http://localhost:18000", "type": "string"}]
+}

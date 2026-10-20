@@ -1,0 +1,14 @@
+name: "random_forest_regression"
+backend: "python"
+max_batch_size: 0
+input [
+  { name: "distrito" data_type: TYPE_STRING dims: [ -1, 1 ] },
+  { name: "tipo_tramite" data_type: TYPE_STRING dims: [ -1, 1 ] },
+  { name: "superficie_solicitada_m2" data_type: TYPE_FP32 dims: [ -1, 1 ] },
+  { name: "requerimientos_documentacion" data_type: TYPE_FP32 dims: [ -1, 1 ] },
+  { name: "mes_presentacion" data_type: TYPE_FP32 dims: [ -1, 1 ] },
+  { name: "x" data_type: TYPE_FP32 dims: [ -1, 1 ] }
+]
+output [
+  { name: "Y" data_type: TYPE_FP32 dims: [ -1, 1 ] }
+]

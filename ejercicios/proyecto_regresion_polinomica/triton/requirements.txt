@@ -1,0 +1,6 @@
+# Keep identical between the trainer and Triton Python backend to preserve
+# scikit-learn pickle compatibility. Triton's Python backend uses Python 3.12.
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+matplotlib==3.9.2

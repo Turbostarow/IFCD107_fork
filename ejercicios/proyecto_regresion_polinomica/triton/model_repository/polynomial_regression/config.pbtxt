@@ -1,0 +1,9 @@
+name: "polynomial_regression"
+backend: "python"
+max_batch_size: 0
+input [
+  { name: "X" data_type: TYPE_FP32 dims: [ -1, 1 ] }
+]
+output [
+  { name: "Y" data_type: TYPE_FP32 dims: [ -1, 1 ] }
+]

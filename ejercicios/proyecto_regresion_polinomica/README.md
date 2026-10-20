@@ -102,3 +102,21 @@ Invoke-RestMethod -Method Post -Uri http://localhost:3000/predict -ContentType '
 ```
 
 La ejecución verificada con este CSV obtuvo R² = 0,9287, RMSE = 6,9001 y MAE = 5,5080 en el conjunto reservado. Una llamada con `x=[40,50,60]` devolvió aproximadamente `[45.2401, 56.6759, 70.0502]`. Son resultados sobre datos sintéticos de aprendizaje. Importa `bentoml/BentoML_Polynomial_Regression.postman_collection.json` para repetir la petición. Para parar el servicio, ejecuta `docker compose -f bentoml/compose.yaml down`.
+
+## NVIDIA Triton: regresores lineal, polinómico y Random Forest
+
+El componente independiente `triton/` reutiliza los módulos de `regression/`, entrena y evalúa los modelos, y después los publica mediante NVIDIA Triton Python backend. El entrenamiento ocurre antes de que Triton cargue los modelos; las llamadas HTTP realizan inferencia.
+
+Desde la raíz del proyecto:
+
+```powershell
+docker compose -f triton/compose.yaml up --build
+```
+
+Para hacer visible la GPU NVIDIA al contenedor Triton (con NVIDIA Container Toolkit disponible):
+
+```powershell
+docker compose -f triton/compose.yaml -f triton/compose.gpu.yaml up --build
+```
+
+La API V2 se publica en el puerto 8000; importa `triton/postman/NVIDIA_Triton_Regressors.postman_collection.json` para probar los tres modelos. Consulta `triton/README.md` para entradas, datos y explicación del flujo.

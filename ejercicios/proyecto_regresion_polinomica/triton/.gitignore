@@ -1,0 +1,3 @@
+model_repository/*/1/model.pkl
+results/*.json
+!results/.gitkeep

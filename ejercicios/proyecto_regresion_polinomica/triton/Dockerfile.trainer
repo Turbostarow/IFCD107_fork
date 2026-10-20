@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/ifcd107
+
+WORKDIR /opt/ifcd107
+COPY triton/requirements.txt /tmp/requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY regression/ /opt/ifcd107/regression/
+COPY triton/train_models.py /opt/ifcd107/triton/train_models.py
+COPY ejemplos/datos_ejemplo_xy.csv /opt/ifcd107/ejemplos/datos_ejemplo_xy.csv
+COPY ejemplos/datos_ejemplo_complejo.csv /opt/ifcd107/ejemplos/datos_ejemplo_complejo.csv
+
+ENTRYPOINT ["python", "/opt/ifcd107/triton/train_models.py"]

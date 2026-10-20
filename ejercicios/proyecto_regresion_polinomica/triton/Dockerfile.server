@@ -1,0 +1,12 @@
+ARG TRITON_BASE_IMAGE=nvcr.io/nvidia/tritonserver:26.08-py3
+FROM ${TRITON_BASE_IMAGE}
+
+ENV PYTHONPATH=/opt/ifcd107
+
+COPY triton/requirements.txt /tmp/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY regression/ /opt/ifcd107/regression/
+COPY triton/backend_utils.py /opt/ifcd107/backend_utils.py
+
+EXPOSE 8000 8001 8002
