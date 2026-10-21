@@ -11,8 +11,13 @@ RUN addgroup --system app && adduser --system --ingroup app --home /home/app app
     && chown -R app:app /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential libpq-dev libpq5 \
+    && apt-mark manual libpq5 \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apt-get purge -y --auto-remove build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=app:app . .
 USER app
