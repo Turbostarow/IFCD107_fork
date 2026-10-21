@@ -25,7 +25,19 @@ Para regenerar el conjunto determinista de 1.000 filas: `python scripts/generate
 
 La API mantiene endpoints en `app.py`, funciones auxiliares compartidas en `api_functions.py` y clases de algoritmo dentro de `regression/`. Los artefactos se crean bajo `runs/<reference>/` en `graficas/`, `csv_entrada/`, `logs_salida/`, `csv_salida/` y `modelos/`. El registro central `runs/_auditoria/api_audit.jsonl` conserva una entrada por petición con fecha UTC, método, ruta, estado, usuario, IP y huella SHA-256 truncada del token. Los logs nunca guardan el token Bearer completo. Si se usa un proxy inverso, `REMOTE_ADDR` reflejará el proxy salvo que se configure confianza explícita para proxies conocidos. El modelo se guarda como `.pkt`; carga solo archivos de confianza porque utiliza pickle.
 
-Endpoints: `GET /api/v1/health` (público), `POST /api/v1/auth/token` (emite token), regresión polinómica JSON/CSV y búsqueda, KNN con K-Fold/Leave-One-Out, Random Forest desde CSV o desde el ejemplo, y los nuevos regresores SVR, AdaBoost y Gradient Boosting desde CSV. Todas las rutas de entrenamiento requieren Bearer. Los tokens expiran por defecto en una hora; configura `API_TOKEN_TTL_SECONDS` para cambiarlo.
+Endpoints: `GET /api/v1/health` y `GET /api/v1/regresion/parametros` (públicos), `POST /api/v1/auth/token` (emite token), regresión polinómica JSON/CSV y búsqueda, KNN con K-Fold/Leave-One-Out, Random Forest desde CSV o desde el ejemplo, y SVR, AdaBoost y Gradient Boosting desde CSV. Todas las rutas de entrenamiento requieren Bearer. Los tokens expiran por defecto en una hora; configura `API_TOKEN_TTL_SECONDS` para cambiarlo.
+
+`GET /api/v1/regresion/parametros` devuelve un catálogo donde cada parámetro se presenta como un elemento con `parameter` y `items`. Los endpoints de entrenamiento aceptan `search=true`, `n_iter` y `search_cv`; en ese modo `RandomizedSearchCV` toma sus candidatos de las mismas listas. La prueba final queda separada de la búsqueda. La respuesta incluye `parameters` con los valores ganadores, `requested_parameters` y las métricas de validación cruzada. En KNN la búsqueda se hace de forma anidada dentro de cada pliegue externo; al combinarla con Leave-One-Out se limita a 200 filas.
+
+Ejemplo multipart para activar la búsqueda en SVR, AdaBoost, Gradient Boosting o KNN:
+
+```text
+search=true
+n_iter=10
+search_cv=5
+```
+
+En Random Forest se pueden enviar esos mismos campos en JSON o multipart. Con `search=false` se conserva el ajuste directo usando los parámetros indicados en la petición.
 
 
 ## Random Forest
@@ -59,53 +71,22 @@ Las tres rutas reciben `multipart/form-data` con `reference`, `target`, opciones
 
 Cada estimador está en su módulo de `regression/`: `svm_regressor.py`, `adaboost_regressor.py` y `gradient_boosting_regressor.py`. `tabular_preprocessing.py` centraliza la imputación/codificación común y el escalado específico que necesita SVR. La colección Postman incluye una solicitud de ejemplo para cada endpoint nuevo usando el CSV sintético incluido.
 
-## Docker y Ollama
+## Ejemplo de KNN con Ollama
 
-El proyecto incluye un contenedor Flask, un servicio Ollama y un paso de inicialización que descarga el modelo configurado. Ollama no publica su puerto al host; la API web es el único servicio expuesto. Los artefactos de regresión se guardan en un volumen Docker persistente y los modelos Ollama se descargan en la carpeta local `ollama/`.
+`ejemplos/knn_con_ollama.py` ejecuta KNN de regresión con scikit-learn sobre `ejemplos/datos_knn_5000_outliers.csv`. Después, envía a Ollama solo un resumen de las métricas para obtener una explicación en lenguaje natural; Ollama no entrena KNN ni recibe las filas del CSV.
 
-1. Copia `.env.example` a `.env` y configura `API_ADMIN_PASSWORD` y `API_TOKEN_SECRET` con valores aleatorios propios. No compartas `.env`.
-2. Desde la raíz del proyecto ejecuta:
-
-```powershell
-docker compose up --build -d
-```
-
-La primera ejecución descarga la imagen de Ollama y el modelo (por defecto `qwen2.5:3b`), por lo que puede tardar y ocupar varios GB. Para elegir otro modelo, cambia `OLLAMA_MODEL` en `.env` y recrea los servicios. La API queda disponible en `http://localhost:5000`; cambia `API_PORT` para usar otro puerto del host.
-
-Para pedir ayuda al modelo, primero obtén el token con `POST /api/v1/auth/token` y luego envía `POST /api/v1/ai/chat` con `Authorization: Bearer <token>` y JSON como `{"prompt":"¿Cómo interpreto un R² negativo?"}`. Esta ruta usa Ollama y devuelve `model` y `answer`; las rutas de entrenamiento existentes no dependen del chat.
-
-Comandos útiles:
+Con Ollama instalado y en ejecución, descarga un modelo local y lanza el ejemplo desde la raíz del proyecto:
 
 ```powershell
-docker compose logs -f api ollama
-docker compose down
+ollama pull llama3.2
+python ejemplos/knn_con_ollama.py
 ```
 
-`docker compose down` conserva el volumen de resultados y la carpeta local `ollama/`. Para borrar el volumen de resultados ejecuta `docker compose down -v`; para liberar el espacio de los modelos, detén Compose y elimina manualmente la carpeta `ollama/`.
-
-
-
-La variante `POST /api/v1/regresion/polinomica/randomizedsearch/ollama` ejecuta la misma búsqueda y agrega `ollama_documentation` a la respuesta. Si Ollama no está disponible, conserva las métricas y devuelve `ollama_documentation_error`. La colección Postman incluye una solicitud JSON para esta ruta.
-
-## Regresión polinómica servida con BentoML y Docker
-
-El componente autónomo `bentoml/` añade un pipeline de regresión polinómica sin modificar la API Flask ni el servicio de Ollama. Desde esta raíz, inicia el entrenamiento y el servidor con:
-
-```powershell
-docker compose -f bentoml/compose.yaml up --build
-```
-
-El servicio lee `ejemplos/datos_ejemplo_xy.csv`, evalúa sobre una partición de 200 filas, registra el pipeline de grado 2 y expone `POST http://localhost:3000/predict`. Para enviar una petición desde PowerShell:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:3000/predict -ContentType 'application/json' -Body '{"x":[40,50,60]}'
-```
-
-La ejecución verificada con este CSV obtuvo R² = 0,9287, RMSE = 6,9001 y MAE = 5,5080 en el conjunto reservado. Una llamada con `x=[40,50,60]` devolvió aproximadamente `[45.2401, 56.6759, 70.0502]`. Son resultados sobre datos sintéticos de aprendizaje. Importa `bentoml/BentoML_Polynomial_Regression.postman_collection.json` para repetir la petición. Para parar el servicio, ejecuta `docker compose -f bentoml/compose.yaml down`.
+Para probar la alternativa de escalado robusto ante outliers: `python ejemplos/knn_con_ollama.py --scaler robust`. Para cambiar el modelo, indica `--model nombre:tag` o establece `OLLAMA_MODEL`. La conexión usa la API local de Ollama en `http://localhost:11434`.
 
 ## NVIDIA Triton: regresores lineal, polinómico y Random Forest
 
-El componente independiente `triton/` reutiliza los módulos de `regression/`, entrena y evalúa los modelos, y después los publica mediante NVIDIA Triton Python backend. El entrenamiento ocurre antes de que Triton cargue los modelos; las llamadas HTTP realizan inferencia.
+El directorio independiente `triton/` entrena los modelos con las clases de `regression/`, guarda los artefactos y los publica mediante NVIDIA Triton Python backend. El entrenamiento ocurre antes de que Triton cargue sus modelos; las llamadas HTTP solo realizan inferencia.
 
 Desde la raíz del proyecto:
 
@@ -120,3 +101,15 @@ docker compose -f triton/compose.yaml -f triton/compose.gpu.yaml up --build
 ```
 
 La API V2 se publica en el puerto 8000; importa `triton/postman/NVIDIA_Triton_Regressors.postman_collection.json` para probar los tres modelos. Consulta `triton/README.md` para entradas, datos y explicación del flujo.
+
+## Regresión polinómica servida con BentoML y Docker
+
+El componente independiente `bentoml/` incluye el entrenamiento, el servicio de inferencia, la imagen Docker y la composición de contenedores. No modifica la API Flask existente. Consulta [`bentoml/README.md`](bentoml/README.md) para el flujo completo y la petición de Postman.
+
+Desde la raíz del proyecto:
+
+```powershell
+docker compose -f bentoml/compose.yaml up --build
+```
+
+Compose entrena el pipeline de grado 2 con el CSV sintético `ejemplos/datos_ejemplo_xy.csv`, lo registra en el volumen BentoML y después sirve `POST http://localhost:3000/predict`. La ejecución verificada con 1.000 observaciones reservó 200 para evaluación: R² = 0,9287, RMSE = 6,9001 y MAE = 5,5080. Son métricas del conjunto de ejemplo, no de datos reales. La solicitud acepta JSON con `{"x":[40,50,60]}`; la respuesta añade las métricas, el grado y el número de filas usadas para el ajuste final.

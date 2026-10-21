@@ -28,12 +28,15 @@ class RandomForestResult:
     feature_importances: list[dict]
     feature_columns: list[str]
     target: str
+    best_parameters: dict | None = None
+    best_cv_score: float | None = None
 
 
 class RandomForestRegressorModel:
     """Preprocesa variables mixtas, entrena el bosque y produce métricas."""
 
-    def __init__(self, n_estimators=200, max_depth=None, test_size=0.2, random_state=42):
+    def __init__(self, n_estimators=200, max_depth=None, test_size=0.2, random_state=42,
+                 search_options=None):
         if isinstance(n_estimators, bool) or not isinstance(n_estimators, int) or not 10 <= n_estimators <= 1000:
             raise ValueError("n_estimators debe ser un entero entre 10 y 1000.")
         if max_depth is not None and (isinstance(max_depth, bool) or not isinstance(max_depth, int) or not 1 <= max_depth <= 100):
@@ -46,6 +49,7 @@ class RandomForestRegressorModel:
         self.max_depth = max_depth
         self.test_size = float(test_size)
         self.random_state = random_state
+        self.search_options = search_options
 
     def fit(self, frame: pd.DataFrame, target: str = "y") -> RandomForestResult:
         # Primero se separa la columna que queremos predecir del resto de la tabla.
@@ -98,7 +102,29 @@ class RandomForestRegressorModel:
         # métricas posteriores estiman cómo funciona el modelo con datos nuevos.
         indices = np.arange(len(y))
         train_idx, test_idx = train_test_split(indices, test_size=self.test_size, random_state=self.random_state)
-        pipeline.fit(X.iloc[train_idx], y.iloc[train_idx])
+        best_parameters = None
+        best_cv_score = None
+        if self.search_options:
+            from sklearn.model_selection import KFold, RandomizedSearchCV
+
+            search = RandomizedSearchCV(
+                estimator=pipeline,
+                param_distributions=self.search_options["param_distributions"],
+                n_iter=self.search_options["n_iter"],
+                cv=KFold(n_splits=self.search_options["cv"], shuffle=True,
+                         random_state=self.random_state),
+                scoring="neg_mean_squared_error",
+                random_state=self.random_state,
+                n_jobs=1,
+                refit=True,
+                error_score="raise",
+            )
+            search.fit(X.iloc[train_idx], y.iloc[train_idx])
+            pipeline = search.best_estimator_
+            best_parameters = search.best_params_
+            best_cv_score = float(search.best_score_)
+        else:
+            pipeline.fit(X.iloc[train_idx], y.iloc[train_idx])
         predicted = pipeline.predict(X.iloc[test_idx])
         observed = y.iloc[test_idx].to_numpy(dtype=float)
         residuals = observed - predicted
@@ -117,7 +143,10 @@ class RandomForestRegressorModel:
         scores = pipeline.named_steps["random_forest"].feature_importances_
         importance = [{"feature": str(name), "importance": float(score)} for name, score in
                       sorted(zip(names, scores), key=lambda item: item[1], reverse=True)]
-        return RandomForestResult(pipeline, metrics, predictions, importance, feature_columns, target)
+        return RandomForestResult(
+            pipeline, metrics, predictions, importance, feature_columns, target,
+            best_parameters, best_cv_score,
+        )
 
     @staticmethod
     def save(path: Path, result: RandomForestResult):

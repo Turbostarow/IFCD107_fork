@@ -4,6 +4,3 @@ __pycache__/
 runs/*
 !runs/.gitkeep
 .env
-ollama/*
-!ollama/.gitkeep
-

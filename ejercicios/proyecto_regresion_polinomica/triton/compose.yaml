@@ -27,9 +27,9 @@ services:
       train-triton-models:
         condition: service_completed_successfully
     ports:
-      - "18000:8000"
-      - "18001:8001"
-      - "18002:8002"
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
     volumes:
       - ./model_repository:/models:ro
     restart: unless-stopped

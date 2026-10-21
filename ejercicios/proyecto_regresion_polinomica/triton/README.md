@@ -23,7 +23,7 @@ Con Docker configurado para exponer la GPU NVIDIA y NVIDIA Container Toolkit, us
 docker compose -f triton/compose.yaml -f triton/compose.gpu.yaml up --build
 ```
 
-El contenedor `train-triton-models` entrena y evalúa los modelos con partición reproducible. Al completarse, registra `model.pkl` en cada carpeta de versión del repositorio y escribe las métricas en `triton/results/training_metrics.json`. A continuación se inicia el servicio NVIDIA Triton en los puertos publicados HTTP 18000, gRPC 18001 y métricas 18002 (puertos internos 8000-8002).
+El contenedor `train-triton-models` entrena y evalúa los modelos con partición reproducible. Al completarse, registra `model.pkl` en cada carpeta de versión del repositorio y escribe las métricas en `triton/results/training_metrics.json`. A continuación se inicia el servicio NVIDIA Triton en los puertos HTTP 8000, gRPC 8001 y métricas 8002.
 
 Para regenerar los modelos tras cambiar datos o parámetros:
 
@@ -50,7 +50,7 @@ La API HTTP V2 de Triton acepta solicitudes JSON como:
 
 ```powershell
 $body = '{"inputs":[{"name":"X","shape":[3,1],"datatype":"FP32","data":[40,50,60]}],"outputs":[{"name":"Y"}]}'
-Invoke-RestMethod -Method Post -Uri http://localhost:18000/v2/models/polynomial_regression/infer -ContentType 'application/json' -Body $body
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/v2/models/polynomial_regression/infer -ContentType 'application/json' -Body $body
 ```
 
 Importa `triton/postman/NVIDIA_Triton_Regressors.postman_collection.json` para los tres ejemplos y sus aserciones.

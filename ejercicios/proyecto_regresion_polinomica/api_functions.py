@@ -27,6 +27,7 @@ from regression.tabular_preprocessing import build_tabular_preprocessor
 from regression.svm_regressor import build_svm_regression_pipeline
 from regression.adaboost_regressor import build_adaboost_regression_pipeline
 from regression.gradient_boosting_regressor import build_gradient_boosting_regression_pipeline
+from regression.parameter_search import PARAMETER_CATALOG
 
 # Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
 MAX_POINTS = 100_000
@@ -69,6 +70,23 @@ def parse_integer(name, default, minimum, maximum, source):
     if not minimum <= parsed <= maximum:
         raise ValueError(f"{name} debe ser un entero entre {minimum} y {maximum}.")
     return parsed
+
+def parse_search_options(source):
+    """Valida el interruptor y el presupuesto de una búsqueda de hiperparámetros."""
+    raw = source.get("search", False)
+    if isinstance(raw, bool):
+        enabled = raw
+    elif isinstance(raw, str) and raw.strip().lower() in {"true", "1", "yes", "si", "sí"}:
+        enabled = True
+    elif isinstance(raw, str) and raw.strip().lower() in {"false", "0", "no", ""}:
+        enabled = False
+    else:
+        raise ValueError("search debe ser true o false.")
+    return {
+        "search": enabled,
+        "n_iter": parse_integer("n_iter", 10, 1, 100, source),
+        "search_cv": parse_integer("search_cv", 5, 2, 10, source),
+    }
 
 def parse_csv(text):
     """Extrae x/y de un CSV para los modelos polinómicos de una variable."""
@@ -132,7 +150,7 @@ def random_forest_options(source):
     if not isinstance(target, str) or not target.strip():
         raise ValueError("target debe indicar el nombre de una columna.")
     return {"n_estimators": n_estimators, "max_depth": max_depth, "test_size": test_size,
-            "random_state": random_state, "target": target}
+            "random_state": random_state, "target": target, **parse_search_options(source)}
 
 
 def regression_model_options(source, model_name):
@@ -152,7 +170,8 @@ def regression_model_options(source, model_name):
     if not np.isfinite(test_size) or not 0.1 <= test_size <= 0.4:
         raise ValueError("test_size debe ser un número entre 0.1 y 0.4.")
     random_state = parse_integer("random_state", 42, 0, 2**32 - 1, source)
-    options = {"target": target.strip(), "test_size": test_size, "random_state": random_state}
+    options = {"target": target.strip(), "test_size": test_size, "random_state": random_state,
+               **parse_search_options(source)}
 
     def parse_float(name, default, minimum, maximum):
         """Convierte un campo decimal y rechaza booleanos, NaN e infinitos."""
@@ -218,7 +237,7 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
     import matplotlib.pyplot as plt
     import pandas as pd
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-    from sklearn.model_selection import train_test_split
+    from sklearn.model_selection import KFold, RandomizedSearchCV, train_test_split
 
     # Cada nombre público selecciona un constructor distinto. Los tres
     # constructores reciben el mismo preprocesador, pero añaden otro estimador.
@@ -312,7 +331,24 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
         )
         # Se reservan filas que el entrenamiento no verá. Las métricas de abajo
         # describen esas predicciones de prueba, no el ajuste sobre train.
-        estimator.fit(X.iloc[train_idx], y.iloc[train_idx])
+        search_result = None
+        if options.get("search"):
+            search_result = RandomizedSearchCV(
+                estimator=estimator,
+                param_distributions=PARAMETER_CATALOG.get_param_distributions_iterator(model_name),
+                n_iter=options["n_iter"],
+                cv=KFold(n_splits=min(options["search_cv"], len(train_idx)), shuffle=True,
+                         random_state=options["random_state"]),
+                scoring="neg_mean_squared_error",
+                n_jobs=1,
+                random_state=options["random_state"],
+                refit=True,
+                error_score="raise",
+            )
+            search_result.fit(X.iloc[train_idx], y.iloc[train_idx])
+            estimator = search_result.best_estimator_
+        else:
+            estimator.fit(X.iloc[train_idx], y.iloc[train_idx])
         predicted = estimator.predict(X.iloc[test_idx])
         observed = y.iloc[test_idx].to_numpy(dtype=float)
         residuals = observed - predicted
@@ -354,7 +390,16 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
         metadata = {
             "reference": reference, "run_id": run_id, "algorithm": labels[model_name],
             "target": target, "feature_columns": usable_columns,
-            "parameters": {key: value for key, value in options.items() if key != "target"},
+            "parameters": (search_result.best_params_ if search_result is not None else
+                           {key: value for key, value in options.items() if key not in {"target", "search", "n_iter", "search_cv"}}),
+            "requested_parameters": {key: value for key, value in options.items() if key not in {"target", "search", "n_iter", "search_cv"}},
+            "search": {
+                "enabled": search_result is not None,
+                "n_iter": options["n_iter"],
+                "cv": min(options["search_cv"], len(train_idx)) if search_result is not None else None,
+                "best_parameters": search_result.best_params_ if search_result is not None else None,
+                "best_cv_score_neg_mse": float(search_result.best_score_) if search_result is not None else None,
+            },
             "n_rows_input": int(len(frame)), "n_rows_train": int(len(train_idx)),
             "n_rows_test": int(len(test_idx)), "metrics": metrics,
             "artifacts": {
@@ -376,8 +421,9 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
                 {"feature": str(name), "importance": float(score)}
                 for name, score in sorted(zip(names, scores), key=lambda row: row[1], reverse=True)[:15]
             ]
-        logger.info("Entrenamiento %s completado: n=%d metrics=%s",
-                    labels[model_name], len(data), metrics)
+        logger.info("Entrenamiento %s completado: n=%d search=%s best_params=%s metrics=%s",
+                    labels[model_name], len(data), search_result is not None,
+                    search_result.best_params_ if search_result is not None else None, metrics)
         return jsonify(metadata), 200
     except (ValueError, UnicodeDecodeError) as exc:
         logger.exception("No se pudo entrenar %s: %s", model_name, exc)
@@ -426,10 +472,18 @@ def run_random_forest(app, output_root, reference, raw_csv, options, source_name
             raise ValueError("El CSV no puede contener nombres de columna duplicados.")
         # La clase de regresión prepara las columnas, divide los datos y entrena
         # el pipeline; aquí la función de API coordina la ejecución completa.
+        search_options = None
+        if options.get("search"):
+            search_options = {
+                "param_distributions": PARAMETER_CATALOG.get_param_distributions_iterator("random_forest"),
+                "n_iter": options["n_iter"],
+                "cv": min(options["search_cv"], max(2, int((len(frame) * (1 - options["test_size"])) // 2))),
+            }
         model = RandomForestRegressorModel(n_estimators=options["n_estimators"],
                                            max_depth=options["max_depth"],
                                            test_size=options["test_size"],
-                                           random_state=options["random_state"])
+                                           random_state=options["random_state"],
+                                           search_options=search_options)
         result = model.fit(frame, target=options["target"])
         # Escribimos los tres resultados del modelo antes de construir la respuesta.
         csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
@@ -442,7 +496,13 @@ def run_random_forest(app, output_root, reference, raw_csv, options, source_name
             "reference": reference, "run_id": run_id,
             "algorithm": "RandomForestRegressor", "target": result.target,
             "feature_columns": result.feature_columns,
-            "parameters": {key: options[key] for key in ("n_estimators", "max_depth", "test_size", "random_state")},
+            "parameters": (result.best_parameters if result.best_parameters is not None else
+                           {key: options[key] for key in ("n_estimators", "max_depth", "test_size", "random_state")}),
+            "requested_parameters": {key: options[key] for key in ("n_estimators", "max_depth", "test_size", "random_state")},
+            "search": {"enabled": bool(options.get("search")), "n_iter": options["n_iter"],
+                       "cv": search_options["cv"] if search_options else None,
+                       "best_parameters": result.best_parameters,
+                       "best_cv_score_neg_mse": result.best_cv_score},
             "n_rows_input": int(len(frame)), "n_rows_train": int(len(frame) - len(result.predictions)),
             "n_rows_test": int(len(result.predictions)), "metrics": result.metrics,
             "feature_importances_top_15": result.feature_importances[:15],
@@ -454,7 +514,8 @@ def run_random_forest(app, output_root, reference, raw_csv, options, source_name
                 "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
             },
         }
-        logger.info("Entrenamiento Random Forest completado: n=%d metrics=%s", len(frame), result.metrics)
+        logger.info("Entrenamiento Random Forest completado: n=%d search=%s best_params=%s metrics=%s",
+                    len(frame), bool(options.get("search")), result.best_parameters, result.metrics)
         return jsonify(metadata), 200
     except (ValueError, UnicodeDecodeError) as exc:
         logger.exception("No se pudo entrenar el Random Forest: %s", exc)
@@ -550,11 +611,9 @@ def run_model(app, output_root, reference, degree, x, y, input_kind, raw_csv=Non
         logger.removeHandler(handler)
 
 
-def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None, document_with_ollama=False):
+def run_polynomial_search(output_root, reference, x, y, options, weights=None, raw_csv=None):
     """Separa los datos, busca hiperparámetros y evalúa el mejor modelo en prueba."""
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-    from regression.polynomial_regressor import PolynomialSearchEstimator, PolynomialSearchEstimatorOllama
-    from ollama_service import OllamaServiceError
     from sklearn.model_selection import train_test_split
     import pickle
     import matplotlib.pyplot as plt
@@ -595,8 +654,7 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
         # El pipeline prueba combinaciones usando validación cruzada dentro del
         # conjunto de entrenamiento y vuelve a ajustar la ganadora (refit=True).
         search = build_polynomial_search(
-            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"],
-            estimator_class=(PolynomialSearchEstimatorOllama if document_with_ollama else PolynomialSearchEstimator),
+            n_iter=options["n_iter"], cv=options["cv"], random_state=options["random_state"]
         )
         X_train = x[train_idx].reshape(-1, 1)
         X_test = x[test_idx].reshape(-1, 1)
@@ -657,22 +715,6 @@ def run_polynomial_search(output_root, reference, x, y, options, weights=None, r
                 "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
             },
         }
-        if document_with_ollama:
-            documentation_input = {
-                "best_parameters": search.best_params_,
-                "best_cv_rmse": metadata["best_cv_rmse"],
-                "test_metrics": metrics,
-                "n_rows_input": int(len(x)),
-                "n_rows_train": int(len(train_idx)),
-                "n_rows_test": int(len(test_idx)),
-            }
-            try:
-                metadata["ollama_documentation"] = search.best_estimator_.named_steps[
-                    "polynomial"
-                ].document_results(documentation_input)
-            except OllamaServiceError as exc:
-                logger.warning("Ollama no pudo documentar los resultados: %s", exc)
-                metadata["ollama_documentation_error"] = str(exc)
         best_estimator_params = search.best_estimator_.named_steps["polynomial"].get_params(deep=False)
         logger.info(
             "RandomizedSearchCV completado param_distributions=%s best_estimator_params=%s best=%s metrics=%s",
@@ -905,7 +947,7 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
     import matplotlib.pyplot as plt
     import pandas as pd
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-    from sklearn.model_selection import KFold, LeaveOneOut, cross_val_predict
+    from sklearn.model_selection import KFold, LeaveOneOut, RandomizedSearchCV, cross_val_predict
 
     if method not in {"kfold", "leave_one_out"}:
         raise ValueError("method debe ser 'kfold' o 'leave_one_out'.")
@@ -954,7 +996,7 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
             smallest_train_fold = len(frame) - int(np.ceil(len(frame) / options["cv"]))
         else:
             smallest_train_fold = len(frame) - 1
-        if options["n_neighbors"] > smallest_train_fold:
+        if not options.get("search") and options["n_neighbors"] > smallest_train_fold:
             raise ValueError("n_neighbors supera el número de filas disponibles en un pliegue de entrenamiento.")
 
         # Cada ruta elige su propio separador: KFold usa varios grupos y LOO
@@ -974,7 +1016,75 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
             n_splits = len(frame)
 
         model = build_knn_pipeline(options["n_neighbors"])
-        predicted = cross_val_predict(model, X, y, cv=splitter, n_jobs=1)
+        final_search = None
+        if options.get("search"):
+            if len(frame) < 8:
+                raise ValueError("La búsqueda de hiperparámetros KNN requiere al menos 8 filas.")
+            if method == "leave_one_out" and len(frame) > 200:
+                raise ValueError("La búsqueda con Leave-One-Out se limita a 200 filas; use KFold para conjuntos mayores.")
+
+            base_distribution = PARAMETER_CATALOG.get_param_distributions_iterator("knn")
+            predicted = np.empty(len(y), dtype=float)
+            # La selección de k, ponderación y distancia se repite dentro de
+            # cada pliegue externo para que la predicción OOF no vea su objetivo.
+            for train_part, validation_part in splitter.split(X, y):
+                inner_cv = min(options["search_cv"], len(train_part))
+                smallest_inner_train = len(train_part) - int(np.ceil(len(train_part) / inner_cv))
+                distribution = dict(base_distribution)
+                distribution["knn__n_neighbors"] = [
+                    value for value in distribution["knn__n_neighbors"]
+                    if value <= smallest_inner_train
+                ]
+                if not distribution["knn__n_neighbors"]:
+                    raise ValueError("No hay valores de n_neighbors válidos para los pliegues elegidos.")
+                candidate_count = (
+                    len(distribution["knn__n_neighbors"])
+                    * len(distribution["knn__weights"])
+                    * len(distribution["knn__p"])
+                )
+                fold_search = RandomizedSearchCV(
+                    estimator=build_knn_pipeline(),
+                    param_distributions=distribution,
+                    n_iter=min(options["n_iter"], candidate_count),
+                    cv=KFold(n_splits=inner_cv, shuffle=True,
+                             random_state=options["random_state"]),
+                    scoring="neg_mean_squared_error",
+                    n_jobs=1,
+                    random_state=options["random_state"],
+                    refit=True,
+                    error_score="raise",
+                )
+                fold_search.fit(X.iloc[train_part], y[train_part])
+                predicted[validation_part] = fold_search.predict(X.iloc[validation_part])
+
+            final_distribution = dict(base_distribution)
+            final_distribution["knn__n_neighbors"] = [
+                value for value in final_distribution["knn__n_neighbors"]
+                if value <= len(y) - int(np.ceil(len(y) / options["search_cv"]))
+            ]
+            final_candidate_count = (
+                len(final_distribution["knn__n_neighbors"])
+                * len(final_distribution["knn__weights"])
+                * len(final_distribution["knn__p"])
+            )
+            final_search = RandomizedSearchCV(
+                estimator=build_knn_pipeline(),
+                param_distributions=final_distribution,
+                n_iter=min(options["n_iter"], final_candidate_count),
+                cv=KFold(n_splits=min(options["search_cv"], len(y)), shuffle=True,
+                         random_state=options["random_state"]),
+                scoring="neg_mean_squared_error",
+                n_jobs=1,
+                random_state=options["random_state"],
+                refit=True,
+                error_score="raise",
+            )
+            final_search.fit(X, y)
+            final_model = final_search.best_estimator_
+        else:
+            predicted = cross_val_predict(model, X, y, cv=splitter, n_jobs=1)
+            final_model = build_knn_pipeline(options["n_neighbors"])
+            final_model.fit(X, y)
         residuals = y - predicted
         metrics = {
             "r2": float(r2_score(y, predicted)),
@@ -994,8 +1104,6 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
 
         # Entrenamos un modelo final con todas las filas; este es el modelo que
         # se guarda para predecir casos futuros después de evaluar la CV.
-        final_model = build_knn_pipeline(options["n_neighbors"])
-        final_model.fit(X, y)
         model_path = folders["modelos"] / f"{run_id}_knn_{method}.pkt"
         with model_path.open("wb") as stream:
             pickle.dump(final_model, stream, protocol=pickle.HIGHEST_PROTOCOL)
@@ -1021,7 +1129,15 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
             "n_rows": int(len(frame)),
             "target": target,
             "features": feature_columns,
-            "parameters": {"n_neighbors": options["n_neighbors"]},
+            "parameters": ({"n_neighbors": options["n_neighbors"]} if final_search is None
+                           else final_search.best_params_),
+            "search": {
+                "enabled": final_search is not None,
+                "n_iter": options["n_iter"],
+                "cv": min(options["search_cv"], len(y)) if final_search is not None else None,
+                "best_parameters": final_search.best_params_ if final_search is not None else None,
+                "best_cv_score_neg_mse": float(final_search.best_score_) if final_search is not None else None,
+            },
             "metrics_oof": metrics,
             "artifacts": {
                 "input_csv": str(input_path.relative_to(output_root)),
@@ -1045,5 +1161,3 @@ def run_knn_cross_validation(output_root, reference, raw_csv, options, method):
     finally:
         handler.close()
         logger.removeHandler(handler)
-
-

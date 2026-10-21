@@ -11,12 +11,11 @@ ejecución y rutas relativas a los archivos guardados bajo runs/<reference>/.
 
 Mapa de rutas:
 - GET  /api/v1/health: estado del servicio; no necesita token.
-- POST /api/v1/ai/chat: consulta Ollama; requiere Bearer.
+- GET  /api/v1/regresion/parametros: listas de valores candidatos por modelo.
 - POST /api/v1/auth/token: recibe username/password; devuelve Bearer.
 - POST /api/v1/regresion/polinomica: puntos x/y en JSON.
 - POST /api/v1/regresion/polinomica/csv: columnas x/y en CSV.
 - POST /api/v1/regresion/polinomica/randomizedsearch: búsqueda desde JSON o CSV.
-- POST /api/v1/regresion/polinomica/randomizedsearch/ollama: búsqueda con documentación Ollama.
 - POST /api/v1/random-forest/terrazas y /api/v1/random-forest/csv.
 - POST /api/v1/regresion/knn/kfold y /api/v1/regresion/knn/leave-one-out.
 - POST /api/v1/regresion/svm/csv: regresión con Support Vector Regression.
@@ -44,13 +43,14 @@ from flask import Flask, g, jsonify, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.exceptions import RequestEntityTooLarge
 from dotenv import load_dotenv
-from ollama_service import OllamaServiceError, ask_ollama
 
 from api_functions import (
     parse_csv, parse_json_points, random_forest_options, run_model,
     run_random_forest, run_polynomial_search, run_knn_cross_validation,
     run_tabular_regressor, regression_model_options, validate_reference, parse_integer,
+    parse_search_options,
 )
+from regression.parameter_search import PARAMETER_CATALOG
 
 
 # Carga variables locales antes de inicializar el diccionario de usuarios y la
@@ -217,24 +217,13 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         # Esta ruta pública sirve para comprobar que el servidor está activo.
         return jsonify(status="ok", service="regresion-polinomica-api", version="1.0.0")
 
-    @app.post("/api/v1/ai/chat")
-    @require_token
-    def chat_with_ollama():
-        """Responde preguntas sobre regresión usando el modelo local de Ollama."""
-        body = request.get_json(silent=True)
-        if not isinstance(body, dict):
-            return jsonify(error="El cuerpo debe ser un objeto JSON."), 400
-        prompt = body.get("prompt")
-        if not isinstance(prompt, str) or not prompt.strip():
-            return jsonify(error="prompt es obligatorio y debe ser texto."), 400
-        prompt = prompt.strip()
-        if len(prompt) > 4000:
-            return jsonify(error="prompt no puede superar 4.000 caracteres."), 400
-        try:
-            result = ask_ollama(prompt)
-        except OllamaServiceError as exc:
-            return jsonify(error=str(exc)), 503
-        return jsonify(result), 200
+    @app.get("/api/v1/regresion/parametros")
+    def list_regression_parameters():
+        """Publica las opciones discretas que usan las búsquedas de modelos."""
+        return jsonify(
+            models=PARAMETER_CATALOG.as_items(),
+            search_defaults={"n_iter": 10, "cv": 5, "scoring": "neg_mean_squared_error"},
+        )
 
     @app.post("/api/v1/regresion/polinomica")
     @require_token
@@ -301,13 +290,12 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         return run_model(app, output_root, reference, degree, x, y, "csv", raw_csv=raw)
 
     @app.post("/api/v1/regresion/polinomica/randomizedsearch")
-    @app.post("/api/v1/regresion/polinomica/randomizedsearch/ollama")
     @require_token
     def fit_polynomial_randomized_search():
-        """Busca el modelo polinómico y opcionalmente lo documenta con Ollama.
+        """POST JSON o multipart: selecciona el grado con validación cruzada.
 
-        La ruta /ollama añade una explicación generada a los resultados.
-        Ambas rutas aceptan JSON con data o multipart con file.
+        JSON lleva una lista `data` de puntos x/y; multipart lleva `file`. Los
+        campos n_iter, cv y random_state controlan la búsqueda reproducible.
         """
         raw_csv = None
         # El mismo endpoint admite dos formatos: JSON lleva una lista de puntos;
@@ -361,7 +349,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
             if weights.ndim != 1 or len(weights) != len(x) or not np.isfinite(weights).all() or np.any(weights < 0):
                 return jsonify(error="w debe contener pesos finitos no negativos, uno por observación."), 400
         options = {"n_iter": n_iter, "cv": cv, "random_state": random_state}
-        return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv, document_with_ollama=request.path.endswith("/randomizedsearch/ollama"))
+        return run_polynomial_search(output_root, reference, x, y, options, weights=weights, raw_csv=raw_csv)
 
 
     @app.post("/api/v1/random-forest/terrazas")
@@ -429,6 +417,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
                 "n_neighbors": parse_integer("n_neighbors", 5, 1, 50, request.form),
                 "random_state": parse_integer("random_state", 42, 0, 2**32 - 1, request.form),
                 "cv": parse_integer("cv", 5, 2, 10, request.form),
+                **parse_search_options(request.form),
             }
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
@@ -511,9 +500,4 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host=os.environ.get("FLASK_HOST", "127.0.0.1"), port=int(os.environ.get("API_PORT", "5000")), debug=False)
-
-
-
-
-
+    app.run(host="127.0.0.1", port=5000, debug=False)

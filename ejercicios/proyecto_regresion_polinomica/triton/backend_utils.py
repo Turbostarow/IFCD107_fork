@@ -17,7 +17,11 @@ class PickleRegressionModel:
     tabular = False
 
     def initialize(self, args: dict) -> None:
-        model_dir = Path(args["model_repository"]) / str(args["model_version"])
+        model_dir = (
+            Path(args["model_repository"])
+            / args["model_name"]
+            / str(args["model_version"])
+        )
         with (model_dir / "model.pkl").open("rb") as stream:
             self.model = pickle.load(stream)
         model_config = json.loads(args["model_config"])
