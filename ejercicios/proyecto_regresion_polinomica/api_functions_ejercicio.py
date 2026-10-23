@@ -206,6 +206,216 @@ def preparar_carpetas_y_logs(logger,output_root,reference):
 
 #
 # 6. FLUJO COMÚN DE REGRESIÓN TABULAR (SVR / BOOSTING)
+def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_name):
+    """Ejecuta SVR o boosting sobre un CSV y registra todos sus resultados.
+
+    El flujo didáctico es: conservar el archivo original, leer la tabla,
+    separar objetivo e identificador, crear el preprocesamiento, dividir en
+    entrenamiento/prueba, ajustar el pipeline solo con entrenamiento, medir en
+    prueba y guardar predicciones, gráfica, modelo y metadatos.
+    """
+    from io import BytesIO
+    import pickle
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from sklearn.model_selection import KFold, RandomizedSearchCV, train_test_split
+
+    # Cada nombre público selecciona un constructor distinto. Los tres
+    # constructores reciben el mismo preprocesador, pero añaden otro estimador.
+
+
+    # - Leer CSV y validar encabezados no repetidos, objetivo y límites de filas.
+    builders = {
+            "svm": build_svm_regression_pipeline,
+        "adaboost": build_adaboost_regression_pipeline,
+        "gradient_boosting": build_gradient_boosting_regression_pipeline,
+    }
+    labels = {"svm": "SVR", "adaboost": "AdaBoostRegressor",
+              "gradient_boosting": "GradientBoostingRegressor"}
+    if model_name not in builders:
+        return jsonify(error="Modelo de regresión no reconocido."), 400
+
+    #inicializa el logger
+    logger = logging.getLogger(f"{model_name}.{reference}.{run_id}")
+    run_id,folders,handler =  preparar_carpetas_y_logs(logger,output_root,reference)
+
+    try:
+        logger.info("Petición algoritmo=%s username=%s client_ip=%s token_fingerprint=%s",
+                    model_name, getattr(g, "authenticated_user", None) or "anonymous",
+                    getattr(g, "client_ip", None) or "unknown",
+                    getattr(g, "token_fingerprint", None) or "none")
+        # Guardamos los bytes originales antes de analizarlos: así se puede
+        # repetir la ejecución con exactamente la misma entrada.
+        input_path = folders["csv_entrada"] / f"{run_id}.csv"
+        input_path.write_bytes(raw_csv)
+        try:
+            frame = pd.read_csv(BytesIO(raw_csv), encoding="utf-8-sig")
+        except (UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+            raise ValueError(f"CSV no válido: {exc}") from None
+        if frame.empty or len(frame) > MAX_POINTS:
+            raise ValueError(f"El CSV debe tener entre 1 y {MAX_POINTS} filas de datos.")
+        if frame.columns.duplicated().any():
+            raise ValueError("El CSV no puede contener nombres de columna duplicados.")
+        target = options["target"]
+        if target not in frame.columns:
+            raise ValueError(f"No existe la columna objetivo '{target}'.")
+
+        # y es el valor que se quiere predecir. No numéricos y filas sin y no
+        # sirven para una regresión y se descartan antes de separar X e y.
+        data = frame.copy()
+        data[target] = pd.to_numeric(data[target], errors="coerce")
+        valid_target = data[target].notna() & np.isfinite(data[target].to_numpy(dtype=float))
+        data = data.loc[valid_target].reset_index(drop=True)
+        if len(data) < 10:
+            raise ValueError("Se requieren al menos 10 filas con objetivo numérico.")
+        id_column = "expediente_id" if "expediente_id" in data.columns else None
+        feature_columns = [column for column in data.columns if column not in {target, id_column}]
+        if not feature_columns:
+            raise ValueError("El CSV debe aportar al menos una columna predictora.")
+
+        # Convertimos columnas de texto que en realidad contienen números;
+        # las columnas que siguen siendo texto se tratarán como categorías.
+        X = data[feature_columns].copy()
+        for column in feature_columns:
+            if X[column].dtype == object:
+                converted = pd.to_numeric(X[column], errors="coerce")
+                non_empty = X[column].notna() & (X[column].astype(str).str.strip() != "")
+                if non_empty.any() and converted[non_empty].notna().all():
+                    X[column] = converted
+        numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
+        categorical_columns = [column for column in feature_columns if column not in numeric_columns]
+        for column in numeric_columns:
+            X[column] = X[column].replace([np.inf, -np.inf], np.nan)
+        # Columnas completamente vacías no aportan información y pueden impedir
+        # que algunos imputadores aprendan una transformación válida.
+        usable_columns = [column for column in feature_columns if X[column].notna().any()]
+        X = X[usable_columns]
+        numeric_columns = [column for column in numeric_columns if column in usable_columns]
+        categorical_columns = [column for column in categorical_columns if column in usable_columns]
+        if not usable_columns:
+            raise ValueError("No quedan características con valores utilizables.")
+
+        # El preprocesador queda dentro del Pipeline. fit() lo ajusta con train
+        # solamente y predict() reutiliza esas mismas transformaciones en test.
+        preprocessor = build_tabular_preprocessor(
+            numeric_columns, categorical_columns, scale_numeric=(model_name == "svm")
+        )
+        estimator = builders[model_name](preprocessor, options)
+        y = data[target].astype(float)
+        train_idx, test_idx = train_test_split(
+            np.arange(len(data)), test_size=options["test_size"],
+            random_state=options["random_state"],
+        )
+        # Se reservan filas que el entrenamiento no verá. Las métricas de abajo
+        # describen esas predicciones de prueba, no el ajuste sobre train.
+        search_result = None
+        if options.get("search"):
+            search_result = RandomizedSearchCV(
+                estimator=estimator,
+                param_distributions=PARAMETER_CATALOG.get_param_distributions_iterator(model_name),
+                n_iter=options["n_iter"],
+                cv=KFold(n_splits=min(options["search_cv"], len(train_idx)), shuffle=True,
+                         random_state=options["random_state"]),
+                scoring="neg_mean_squared_error",
+                n_jobs=1,
+                random_state=options["random_state"],
+                refit=True,
+                error_score="raise",
+            )
+            search_result.fit(X.iloc[train_idx], y.iloc[train_idx])
+            estimator = search_result.best_estimator_
+        else:
+            estimator.fit(X.iloc[train_idx], y.iloc[train_idx])
+        predicted = estimator.predict(X.iloc[test_idx])
+        observed = y.iloc[test_idx].to_numpy(dtype=float)
+        residuals = observed - predicted
+        # R² mide variación explicada; RMSE da más peso a errores grandes;
+        # MAE resume el error absoluto y bias indica su dirección promedio.
+        metrics = {
+            "r2": float(r2_score(observed, predicted)),
+            "rmse": float(np.sqrt(mean_squared_error(observed, predicted))),
+            "mae": float(mean_absolute_error(observed, predicted)),
+            "bias": float(np.mean(residuals)),
+        }
+
+        # Una fila de salida por observación de prueba permite revisar cada
+        # error, además de consultar las métricas agregadas.
+        prediction_frame = pd.DataFrame({
+            "y_observado": observed, "y_predicho": predicted, "residuo": residuals,
+        })
+        if id_column:
+            prediction_frame.insert(0, id_column, data[id_column].iloc[test_idx].to_numpy())
+        csv_path = folders["csv_salida"] / f"{run_id}_predicciones.csv"
+        prediction_frame.to_csv(csv_path, index=False, encoding="utf-8")
+        graph_path = folders["graficas"] / f"{run_id}_{model_name}.png"
+        limits = [float(min(observed.min(), predicted.min())),
+                  float(max(observed.max(), predicted.max()))]
+        fig, ax = plt.subplots(figsize=(8, 5.5))
+        ax.scatter(observed, predicted, alpha=0.7, color="#1f77b4")
+        ax.plot(limits, limits, "--", color="#d62728", label="Predicción ideal")
+        ax.set(title=f"{labels[model_name]}: observado frente a predicho",
+               xlabel="Valor observado", ylabel="Valor predicho")
+        ax.grid(True, alpha=0.25)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(graph_path, dpi=160)
+        plt.close(fig)
+        model_path = folders["modelos"] / f"{run_id}_{model_name}.pkt"
+        with model_path.open("wb") as stream:
+            pickle.dump(estimator, stream, protocol=pickle.HIGHEST_PROTOCOL)
+
+        metadata = {
+            "reference": reference, "run_id": run_id, "algorithm": labels[model_name],
+            "target": target, "feature_columns": usable_columns,
+            "parameters": (search_result.best_params_ if search_result is not None else
+                           {key: value for key, value in options.items() if key not in {"target", "search", "n_iter", "search_cv"}}),
+            "requested_parameters": {key: value for key, value in options.items() if key not in {"target", "search", "n_iter", "search_cv"}},
+            "search": {
+                "enabled": search_result is not None,
+                "n_iter": options["n_iter"],
+                "cv": min(options["search_cv"], len(train_idx)) if search_result is not None else None,
+                "best_parameters": search_result.best_params_ if search_result is not None else None,
+                "best_cv_score_neg_mse": float(search_result.best_score_) if search_result is not None else None,
+            },
+            "n_rows_input": int(len(frame)), "n_rows_train": int(len(train_idx)),
+            "n_rows_test": int(len(test_idx)), "metrics": metrics,
+            "artifacts": {
+                "input_csv": str(input_path.relative_to(output_root)),
+                "output_csv": str(csv_path.relative_to(output_root)),
+                "graph_png": str(graph_path.relative_to(output_root)),
+                "trained_model_pkt": str(model_path.relative_to(output_root)),
+                "log": str((folders["logs_salida"] / f"{run_id}.log").relative_to(output_root)),
+            },
+        }
+        # Los árboles de boosting exponen importancia por reducción de
+        # impureza. SVR no tiene una medida general equivalente para todos sus
+        # kernels, por lo que no añadimos ese campo a su respuesta.
+        if model_name in {"adaboost", "gradient_boosting"}:
+            fitted_model = estimator.named_steps[model_name if model_name == "adaboost" else "gradient_boosting"]
+            names = estimator.named_steps["preprocess"].get_feature_names_out()
+            scores = fitted_model.feature_importances_
+            metadata["feature_importances_top_15"] = [
+                {"feature": str(name), "importance": float(score)}
+                for name, score in sorted(zip(names, scores), key=lambda row: row[1], reverse=True)[:15]
+            ]
+        logger.info("Entrenamiento %s completado: n=%d search=%s best_params=%s metrics=%s",
+                    labels[model_name], len(data), search_result is not None,
+                    search_result.best_params_ if search_result is not None else None, metrics)
+        return jsonify(metadata), 200
+    except (ValueError, UnicodeDecodeError) as exc:
+        logger.exception("No se pudo entrenar %s: %s", model_name, exc)
+        return jsonify(error=f"No se pudo entrenar el modelo: {exc}",
+                       reference=reference, run_id=run_id), 422
+    except Exception:
+        logger.exception("Error interno entrenando %s", model_name)
+        return jsonify(error="Error interno durante el entrenamiento.",
+                       reference=reference, run_id=run_id), 500
+    finally:
+        handler.close()
+        logger.removeHandler(handler)
+
+
 # - Leer CSV y validar encabezados no repetidos, objetivo y límites de filas.
 # - Convertir objetivo a número; excluir filas con objetivo ausente/inválido.
 # - Separar predictores y objetivo; excluir columna identificadora si existe.
