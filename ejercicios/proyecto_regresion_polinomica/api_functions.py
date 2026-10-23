@@ -116,7 +116,23 @@ def validate_xy(x, y):
     if not np.isfinite(x).all() or not np.isfinite(y).all():
         raise ValueError("x e y solo pueden contener números finitos.")
     return x, y
+def preparar_carpetas_y_logs(logger,output_root,reference):
+    # - Generar run_id único con fecha UTC y sufijo aleatorio
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
+    # - Combinar OUTPUT_ROOT con reference previamente validada.
+    base = Path(output_root) / reference
+    folders = {name: base / name for name in
+               ("graficas", "csv_entrada", "logs_salida", "csv_salida", "modelos")}
+    # - Crear subcarpetas de entrada, salida, modelos, gráficos y logs.
+    for folder in folders.values():
+        folder.mkdir(parents=True, exist_ok=True)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(folders["logs_salida"] / f"{run_id}.log", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    # - Guardar contexto de usuario/IP/huella de token, pero nunca el secreto.
+    logger.addHandler(handler)
 
+    return run_id,folders,handler
 def random_forest_options(source):
     """Valida opciones del endpoint Random Forest desde JSON o formulario."""
     def parse_int(key, default):
@@ -251,17 +267,10 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
     if model_name not in builders:
         return jsonify(error="Modelo de regresión no reconocido."), 400
 
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
-    base = Path(output_root) / reference
-    folders = {name: base / name for name in
-               ("graficas", "csv_entrada", "logs_salida", "csv_salida", "modelos")}
-    for folder in folders.values():
-        folder.mkdir(parents=True, exist_ok=True)
+    #inicializa el logger
     logger = logging.getLogger(f"{model_name}.{reference}.{run_id}")
-    logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(folders["logs_salida"] / f"{run_id}.log", encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-    logger.addHandler(handler)
+    run_id,folders,handler =  preparar_carpetas_y_logs(logger,output_root,reference)
+
     try:
         logger.info("Petición algoritmo=%s username=%s client_ip=%s token_fingerprint=%s",
                     model_name, getattr(g, "authenticated_user", None) or "anonymous",
