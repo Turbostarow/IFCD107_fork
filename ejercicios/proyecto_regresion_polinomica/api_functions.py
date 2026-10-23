@@ -242,7 +242,7 @@ def run_tabular_regressor(app, output_root, reference, raw_csv, options, model_n
     # Cada nombre público selecciona un constructor distinto. Los tres
     # constructores reciben el mismo preprocesador, pero añaden otro estimador.
     builders = {
-        "svm": build_svm_regression_pipeline,
+            "svm": build_svm_regression_pipeline,
         "adaboost": build_adaboost_regression_pipeline,
         "gradient_boosting": build_gradient_boosting_regression_pipeline,
     }

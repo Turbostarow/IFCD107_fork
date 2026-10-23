@@ -1,0 +1,239 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=2.4cm}
+\usepackage{microtype}
+\usepackage{booktabs,tabularx,longtable,array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!65!black,citecolor=blue!55!black}
+\setlist{itemsep=2pt,topsep=4pt}
+\definecolor{codebg}{HTML}{F4F6F8}
+\definecolor{codeblue}{HTML}{164A72}
+\lstdefinestyle{code}{
+  backgroundcolor=\color{codebg}, basicstyle=\ttfamily\small,
+  keywordstyle=\color{codeblue}\bfseries, commentstyle=\color{gray},
+  stringstyle=\color{red!55!black}, frame=single, rulecolor=\color{gray!35},
+  breaklines=true, showstringspaces=false, columns=fullflexible,
+  keepspaces=true, tabsize=2
+}
+\lstset{style=code}
+\title{\textbf{IA como servicio (AIaaS)}\\Integración, implementación, uso y costes\\[4pt]\large Proyecto didáctico para IFCD107}
+\author{Material técnico de apoyo}
+\date{23 de octubre de 2026}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Este proyecto presenta una guía práctica para consumir algoritmos de inteligencia artificial mediante servicios gestionados y API. Compara opciones de nube, explica una integración REST segura y describe un flujo reproducible usando como caso de estudio el servicio de regresión KNN del proyecto IFCD107: un CSV sintético de 5\,000 filas, un endpoint con validación K-Fold y otro con Leave-One-Out. Incluye ejemplos de petición, arquitectura, despliegue, criterios de selección, una estimación transparente de costes y repositorios públicos de referencia.
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{Objetivo y alcance}
+AIaaS (\emph{Artificial Intelligence as a Service}) permite consumir modelos, algoritmos o infraestructura de IA por API, SDK o consola web, sin que el usuario tenga que mantener toda la infraestructura de ejecución. El proveedor puede aportar modelos listos para usar, endpoints gestionados, entrenamiento, almacenamiento, escalado, monitorización o solo capacidad de cómputo.
+
+El término cubre productos distintos. Una API de un modelo fundacional no equivale a desplegar un estimador clásico como K-Nearest Neighbors (KNN). En este material se distinguen:
+\begin{itemize}
+  \item \textbf{Inferencia de modelos preentrenados}: se envían datos o texto a un modelo ya publicado y se recibe una respuesta.
+  \item \textbf{Entrenamiento y despliegue gestionados}: se registra o entrena un modelo propio y se publica un endpoint para predicciones.
+  \item \textbf{Infraestructura gestionada}: se elige un modelo y una instancia; el proveedor opera el servidor y el escalado.
+\end{itemize}
+El ejemplo de IFCD107 usa regresión KNN supervisada. No usa un LLM para calcular las predicciones.
+
+\section{Plataformas y criterios de integración}
+\begin{longtable}{p{2.7cm}p{4.8cm}p{5.3cm}}
+\toprule
+\textbf{Plataforma} & \textbf{Uso típico} & \textbf{Consideración para IFCD107}\\
+\midrule
+Amazon SageMaker AI & Entrenamiento y alojamiento de modelos propios; inferencia en tiempo real, serverless, asíncrona y por lotes. & Adecuado para desplegar un pipeline scikit-learn con controles de IAM. Se factura por recursos utilizados y modalidad.\\
+Google Cloud Vertex AI & Entrenamiento AutoML o personalizado, registro de modelos y predicciones online/batch. & Alternativa de ciclo de vida gestionado; desplegar un contenedor o modelo compatible y controlar región y escalado.\\
+Microsoft Azure Machine Learning / Microsoft Foundry & Endpoints online de modelos propios y catálogo de modelos/servicios de IA. & Azure Machine Learning encaja con modelos tabulares propios; Foundry facilita acceso a modelos fundacionales y agentes.\\
+Hugging Face Inference Endpoints / Providers & Endpoints dedicados para alojar modelos del Hub y llamadas API serverless a modelos compatibles. & Sencillo para explorar modelos abiertos; para KNN clásico puede requerirse un contenedor personalizado y verificar compatibilidad.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Criterios de decisión}
+Antes de escoger, comparar: tipo de modelo y formato admitido, ubicación de datos, autenticación e identidad, región, latencia, volumen y tamaño de solicitudes, escalado a cero, cuota, observabilidad, retención de logs, licencia, SLA y precio total. Para un proyecto académico de regresión tabular, comenzar localmente permite aprender el algoritmo sin costes de nube. Publicar el endpoint es una etapa adicional.
+
+\section{Arquitectura técnica de referencia}
+\begin{verbatim}
+Cliente (Postman / aplicación Python)
+        | HTTPS + token Bearer + CSV multipart
+        v
+API Flask del proyecto IFCD107
+        | valida identidad, tamaño y columnas
+        v
+Pipeline scikit-learn: StandardScaler + KNeighborsRegressor
+        | KFold o LeaveOneOut + cross_val_predict
+        v
+Métricas OOF + predicciones + modelo final + log + gráfico
+\end{verbatim}
+La demostración local persiste los resultados en directorios de ejecuciones. En una nube, la misma lógica se puede empaquetar en un contenedor y desplegar detrás de un endpoint gestionado. La API de aplicación puede actuar como capa intermedia: autentica al usuario, valida el contrato y llama al endpoint de modelo. Conviene separar credenciales del proveedor y del cliente final.
+
+\section{Contrato de la API didáctica}
+La API Flask del proyecto del curso ofrece dos operaciones multipart:
+\begin{itemize}
+  \item \texttt{POST /api/v1/regresion/knn/kfold}: K-Fold con 5 pliegues predeterminados.
+  \item \texttt{POST /api/v1/regresion/knn/leave-one-out}: Leave-One-Out (LOO), que deja una fila fuera en cada iteración.
+\end{itemize}
+Ambas requieren \texttt{Authorization: Bearer <token>} y campos de formulario:
+\texttt{reference} (identificador de ejecución), \texttt{target} (por defecto \texttt{y}), \texttt{n\_neighbors} (por defecto 5), \texttt{random\_state} (por defecto 42), \texttt{cv} (por defecto 5, relevante para K-Fold) y \texttt{file} (CSV). Para este ejemplo los predictores y la variable objetivo deben ser numéricos, sin valores ausentes o infinitos. El límite de la ruta es 4 MiB y el conjunto está limitado a 5\,000 filas.
+
+La respuesta JSON comunica el identificador, técnica de validación, número de pliegues, columnas, parámetros, métricas out-of-fold (R², RMSE y MAE) y rutas relativas a los artefactos guardados. Las métricas OOF corresponden a predicciones sobre filas que no participaron en el ajuste de su pliegue; el modelo guardado al final se vuelve a ajustar con todas las filas para usarlo en inferencia futura.
+
+\subsection{Autenticación}
+Primero se solicita un token a \texttt{POST /api/v1/auth/token}, enviando las credenciales configuradas en el entorno. La API devuelve un token temporal. Se debe guardar en una variable de entorno, no escribir una clave real dentro del código ni subirla al repositorio. En despliegues con varias instancias, la clave de firma debe ser persistente y estar en un gestor de secretos. HTTPS es obligatorio fuera de un entorno local.
+
+\section{Preparación del ejemplo KNN}
+El generador \texttt{scripts/generate\_knn\_example.py} crea \texttt{ejemplos/datos\_knn\_5000.csv} con semilla fija. Sus columnas son:
+\begin{itemize}
+  \item \texttt{x1}, \texttt{x2}, \texttt{x3}, \texttt{x4}: variables predictoras numéricas en escalas diferentes.
+  \item \texttt{y}: objetivo sintético calculado con una relación no lineal y ruido aleatorio.
+\end{itemize}
+Los registros no son observaciones reales y solo sirven para aprender. El pipeline aplica \texttt{StandardScaler} antes de \texttt{KNeighborsRegressor}, ya que KNN usa distancias y una variable con rango grande podría dominar a las demás. El escalado forma parte del pipeline para que en cada pliegue se ajuste usando únicamente el subconjunto de entrenamiento, reduciendo el riesgo de fuga de información.
+
+\subsection{Flujo K-Fold}
+Se divide el conjunto en \(k\) particiones. Para cada iteración, una partición se reserva para validación y las restantes entrenan el pipeline. Con \(k=5\) se producen cinco modelos temporales y una predicción OOF por fila. El barajado usa una semilla fija para hacer repetible el ejemplo. Es un equilibrio habitual entre coste y evaluación; los resultados dependen de la partición, por lo que en proyectos reales también se puede repetir la validación o reservar un conjunto de prueba.
+
+\subsection{Flujo Leave-One-Out}
+Con \(M\) filas se ejecutan \(M\) iteraciones: una fila para validar y \(M-1\) filas para entrenar. En este ejemplo son 5\,000 ajustes. LOO aprovecha casi todos los datos en cada entrenamiento, pero es mucho más costoso y puede tardar considerablemente más. No es una opción automáticamente mejor; conviene usarla cuando el tamaño del conjunto y el coste de entrenamiento lo permitan.
+
+\section{Implementación y ejecución}
+\subsection{Preparar entorno}
+Desde la carpeta del proyecto:
+\begin{lstlisting}[language=bash]
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+\end{lstlisting}
+Configurar las variables del entorno según \texttt{.env.example} y la guía del repositorio. Usar una contraseña de práctica local; no reutilizar contraseñas personales. Iniciar Flask con el mecanismo indicado en el README del proyecto y comprobar \texttt{GET /api/v1/health}.
+
+\subsection{Crear token}
+El siguiente ejemplo muestra el formato. Sustituir usuario y contraseña por los valores configurados localmente:
+\begin{lstlisting}[language=Python]
+import requests
+
+base = "http://127.0.0.1:5000"
+login = requests.post(
+    f"{base}/api/v1/auth/token",
+    json={"username": "alumno", "password": "CAMBIAR_EN_LOCAL"},
+    timeout=20,
+)
+login.raise_for_status()
+token = login.json()["access_token"]
+\end{lstlisting}
+No usar HTTP sin TLS en una red pública. Para producción, alojar el secreto en el gestor de secretos de la plataforma y restringir el acceso al endpoint.
+
+\subsection{Enviar CSV con K-Fold}
+\begin{lstlisting}[language=Python]
+from pathlib import Path
+
+csv_path = Path("ejemplos/datos_knn_5000.csv")
+with csv_path.open("rb") as data:
+    response = requests.post(
+        f"{base}/api/v1/regresion/knn/kfold",
+        headers={"Authorization": f"Bearer {token}"},
+        data={
+            "reference": "knn_ifcd107_kfold",
+            "target": "y",
+            "n_neighbors": "5",
+            "cv": "5",
+            "random_state": "42",
+        },
+        files={"file": (csv_path.name, data, "text/csv")},
+        timeout=300,
+    )
+response.raise_for_status()
+print(response.json())
+\end{lstlisting}
+
+\subsection{Enviar CSV con LOO}
+Cambiar la URL por \texttt{/api/v1/regresion/knn/leave-one-out}, mantener el mismo CSV y parámetros KNN y aumentar el timeout del cliente según el tiempo observado. Con 5\,000 registros LOO implica 5\,000 entrenamientos; ejecutar primero K-Fold para confirmar que el entorno y los datos funcionan. El servidor limita la carga a 5\,000 filas para esta demostración.
+
+\subsection{Interpretar y conservar resultados}
+Revisar \texttt{metrics\_oof}. RMSE está en las unidades de \texttt{y}; MAE es el error absoluto medio y R² compara el ajuste con una referencia constante. No se debe decidir qué modelo gana con una métrica aislada: importa el objetivo del problema y el comportamiento en datos nuevos. Conservar CSV de entrada, parámetros, versión del código, semilla y artefactos para reproducir y auditar el resultado.
+
+\section{Despliegue de una implementación en nube}
+Flujo recomendado:
+\begin{enumerate}
+  \item \textbf{Preparar artefactos}: fijar dependencias, validar esquema de entrada, serializar un pipeline completo y definir una función de predicción compatible.
+  \item \textbf{Contenerizar}: crear una imagen Docker reproducible con runtime, bibliotecas y código; incluir una ruta de salud y una ruta de predicción JSON.
+  \item \textbf{Almacenar y versionar}: guardar imagen y modelo en registros privados con permisos mínimos. No incluir datos personales ni credenciales en la imagen.
+  \item \textbf{Crear endpoint}: elegir región, CPU/GPU adecuada, número mínimo/máximo de réplicas, autenticación, red privada o pública y timeout.
+  \item \textbf{Integrar cliente}: enviar JSON validado por HTTPS; para cargas tabulares grandes, valorar almacenamiento de objetos y procesamiento batch en vez de enviar archivos grandes al endpoint online.
+  \item \textbf{Observar y controlar}: medir latencia, errores, uso, coste y cambios de distribución de datos; configurar alertas y límites de gasto.
+  \item \textbf{Actualizar y retirar}: probar una versión candidata, promoverla con control de tráfico y eliminar o pausar recursos que no se usan.
+\end{enumerate}
+KNN no tiene una fase de entrenamiento costosa como una red neuronal, pero mantiene los datos de entrenamiento o una estructura equivalente para buscar vecinos al inferir. Por eso el tamaño del conjunto, latencia y concurrencia deben medirse. Para una API de KNN pequeña, una instancia CPU suele ser el primer punto de evaluación; la elección final depende de medidas reales.
+
+\section{Costes y ejemplo de presupuesto}
+El coste depende de proveedor, región, tipo de máquina, réplicas, horas activas, entrenamiento, almacenamiento, tráfico de red, logs y servicios auxiliares. Los precios cambian; la tabla siguiente es una referencia de consulta en octubre de 2026, en dólares estadounidenses, antes de impuestos y descuentos. No es una cotización ni un compromiso de tarifa.
+
+\begin{longtable}{p{3.2cm}p{4.4cm}p{5.1cm}}
+\toprule
+\textbf{Opción} & \textbf{Modelo de cobro} & \textbf{Dato verificable / cálculo}\\
+\midrule
+Hugging Face Inference Endpoint, CPU AWS x1 & Por instancia y tiempo en estado ejecutable; cobro por minuto según documentación. & Tarifa publicada de referencia: US\$0.033/h. Operación continua: \(0.033 \times 730 \approx\) US\$24.09/mes por réplica. Almacenamiento y otros conceptos pueden modificar el total.\\
+Hugging Face Inference Providers & Pago por uso según modelo/proveedor y cómputo. & La documentación indica créditos mensuales sujetos al tipo de cuenta y cobro posterior por uso. Consultar precio del modelo y consumo efectivo antes de producción.\\
+Amazon SageMaker AI & Cómputo de entrenamiento, hosting, almacenamiento y procesamiento usados. & No existe un único coste de endpoint: estimar tipo de instancia, región y horas en la calculadora de AWS. Para tráfico irregular, serverless puede evitar pagar recursos ociosos, sujeto a sus límites.\\
+Google Cloud Vertex AI & Cómputo, almacenamiento y herramientas usadas; cambia según región y tipo de máquina. & Para modelos tabulares personalizados, consultar calculadora y tarifa de endpoint/instancia en la región elegida; algunas categorías de AutoML tabular requieren consulta comercial.\\
+Azure Machine Learning & Cómputo subyacente, disco, red y servicios asociados. & Calcular instancia, mínimo de réplicas y horas; detener o escalar el despliegue al terminar prácticas.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Escenarios orientativos}
+\begin{itemize}
+  \item \textbf{Práctica local}: US\$0 de cómputo cloud; se usa el equipo del alumno. Costes de conexión o electricidad no incluidos.
+  \item \textbf{Endpoint CPU de demostración siempre encendido}: con la tarifa publicada de Hugging Face de US\$0.033/h para una instancia AWS CPU x1, 8 horas costarían aproximadamente US\$0.26; 730 horas, US\$24.09. Es una aproximación aritmética antes de impuestos, redondeos, almacenamiento u otros servicios.
+  \item \textbf{API de modelo fundacional}: el gasto depende de modelo, tokens o unidades de cómputo y volumen. Estimar con las tarifas vigentes del modelo seleccionado; fijar presupuestos y límites.
+\end{itemize}
+Para controlar gasto, pausar o borrar endpoints de práctica tras la sesión, seleccionar CPU cuando sea suficiente, limitar réplicas, usar escalado a cero si el producto lo permite, y revisar las métricas de facturación. Un endpoint pausado puede tener otros recursos asociados que sigan generando coste.
+
+\section{Repositorios públicos y ejemplos}
+Los repositorios son puntos de partida técnicos, no garantías de que un notebook siga funcionando sin cambios. Revisar licencia, fecha, rama, versiones, región requerida y gasto antes de ejecutar.
+\begin{itemize}
+  \item \href{https://github.com/aws/amazon-sagemaker-examples}{aws/amazon-sagemaker-examples}: notebooks para entrenar, evaluar y desplegar modelos con SageMaker; navegar a \texttt{inference/} y ejemplos de scikit-learn.
+  \item \href{https://github.com/GoogleCloudPlatform/vertex-ai-samples}{GoogleCloudPlatform/vertex-ai-samples}: ejemplos de Vertex AI, incluyendo \texttt{notebooks/official/custom/} y \texttt{prediction/} para entrenamiento y predicción de modelos propios.
+  \item \href{https://github.com/Azure/azureml-examples}{Azure/azureml-examples}: ejemplos de Azure Machine Learning. Complementar con el tutorial oficial de endpoint online de scikit-learn enlazado en las referencias.
+  \item \href{https://github.com/huggingface/huggingface_hub}{huggingface/huggingface\_hub}: SDK y guías de Inference Providers y gestión de Inference Endpoints.
+  \item \href{https://github.com/scikit-learn/scikit-learn}{scikit-learn/scikit-learn}: biblioteca del algoritmo y documentación de KNeighborsRegressor; útil para comprender el modelo antes de publicarlo como API.
+  \item \href{https://github.com/GoogleCloudPlatform/ai-platform-samples}{GoogleCloudPlatform/ai-platform-samples}: muestras históricas de AI Platform; el propio repositorio dirige a Vertex AI Samples para material nuevo.
+\end{itemize}
+Para el ejercicio de este documento, revisar primero el código del proyecto IFCD107 en \texttt{regression/knn\_regressor.py}, \texttt{api\_functions.py}, \texttt{app.py} y la colección Postman del repositorio.
+
+\section{Seguridad, privacidad y operación}
+\begin{itemize}
+  \item Enviar únicamente las columnas necesarias; anonimizar o sintetizar datos de prácticas.
+  \item Revisar ubicación, tratamiento, conservación y eliminación de datos con el responsable del servicio.
+  \item Usar TLS, tokens de corta duración, rotación, control de acceso mínimo y secretos fuera del repositorio.
+  \item Limitar tamaño y tipo de peticiones; validar esquema, rangos, valores ausentes y tamaño de salida.
+  \item Evitar registrar tokens, contraseñas o payloads sensibles. Registrar identificadores, versión de modelo, parámetros y estado.
+  \item Establecer límites de gasto, alertas, cuota y un procedimiento para apagar despliegues.
+  \item Validar precisión y deriva con datos representativos; la validación cruzada no sustituye la evaluación de impacto ni las pruebas con datos de producción.
+\end{itemize}
+
+\section{Conclusiones}
+AIaaS permite pasar de un algoritmo de aula a un endpoint consumible por otras aplicaciones, pero delega operación a un proveedor y añade costes, seguridad y decisiones de arquitectura. Para IFCD107, el camino didáctico más controlable es generar el CSV sintético, ejecutar K-Fold, inspeccionar predicciones y métricas, y después comparar LOO conociendo su coste computacional. Solo cuando el contrato de datos, la autenticación y la evaluación están claros conviene desplegar el modelo en una nube.
+
+\section*{Referencias y precios}
+\begin{enumerate}[label={[\arabic*]}]
+  \item Amazon SageMaker AI, opciones de inferencia y facturación: \url{https://docs.aws.amazon.com/sagemaker/latest/dg/inference-cost-optimization.html} y \url{https://aws.amazon.com/sagemaker/ai/faqs/}.
+  \item Vertex AI, precios: \url{https://cloud.google.com/vertex-ai/pricing}.
+  \item Microsoft Learn, creación de endpoint online: \url{https://learn.microsoft.com/azure/machine-learning/tutorial-1st-experiment-hello-world}.
+  \item Hugging Face, precios de Inference Endpoints: \url{https://huggingface.co/docs/inference-endpoints/en/pricing}.
+  \item Hugging Face, costes de Inference Providers: \url{https://huggingface.co/docs/inference-providers/en/pricing}.
+  \item Google Cloud, repositorio de ejemplos Vertex AI: \url{https://github.com/GoogleCloudPlatform/vertex-ai-samples}.
+  \item AWS, repositorio de ejemplos SageMaker: \url{https://github.com/aws/amazon-sagemaker-examples}.
+  \item Documentación de scikit-learn, KNeighborsRegressor: \url{https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html}.
+\end{enumerate}
+\bigskip
+\noindent\textbf{Nota de vigencia:} tarifas, nombres de producto, cuotas y disponibilidad por región pueden cambiar. Verificar la página de precios y la calculadora oficial justo antes de desplegar. La fecha de consulta indicada para este material es 23 de octubre de 2026.
+
+\end{document}

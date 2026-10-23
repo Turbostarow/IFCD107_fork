@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+artifacts/
+data/*.csv
+!data/.gitkeep
+!data/random_forest_demo.csv
+gha-creds-*.json

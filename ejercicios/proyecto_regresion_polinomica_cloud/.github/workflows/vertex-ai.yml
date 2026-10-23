@@ -1,0 +1,134 @@
+name: Test, build and deploy Random Forest to Vertex AI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_to_vertex:
+        description: Build/publish the image and deploy it to Vertex AI
+        required: true
+        default: false
+        type: boolean
+      endpoint_id:
+        description: Existing Vertex endpoint ID (leave empty to create one)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run automated tests
+        env:
+          PYTHONPATH: src
+        run: python -m pytest -q
+
+  build_image:
+    needs: tests
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_to_vertex)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_uri: ${{ steps.image.outputs.image_uri }}
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      REPOSITORY: ${{ vars.ARTIFACT_REPOSITORY }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure Artifact Registry access
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Build and publish image
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_uri="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/random-forest:${GITHUB_SHA}"
+          docker build --pull --tag "$image_uri" .
+          docker push "$image_uri"
+          echo "image_uri=$image_uri" >> "$GITHUB_OUTPUT"
+
+  deploy_vertex:
+    needs: build_image
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_to_vertex
+    runs-on: ubuntu-latest
+    environment: vertex-ai-deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      MACHINE_TYPE: ${{ vars.VERTEX_MACHINE_TYPE }}
+      IMAGE_URI: ${{ needs.build_image.outputs.image_uri }}
+      REQUESTED_ENDPOINT_ID: ${{ inputs.endpoint_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Upload Vertex model and deploy endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          model_name="ifcd107-rf-${short_sha}"
+          model_resource="$(gcloud ai models upload \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --display-name="$model_name" \
+            --container-image-uri="$IMAGE_URI" \
+            --container-predict-route=/predict \
+            --container-health-route=/health \
+            --container-ports=8080 \
+            --format='value(name)')"
+          model_id="${model_resource##*/}"
+
+          endpoint_id="$REQUESTED_ENDPOINT_ID"
+          if [[ -z "$endpoint_id" ]]; then
+            endpoint_resource="$(gcloud ai endpoints create \
+              --project="$PROJECT_ID" \
+              --region="$REGION" \
+              --display-name="ifcd107-random-forest-${short_sha}" \
+              --format='value(name)')"
+            endpoint_id="${endpoint_resource##*/}"
+          fi
+
+          gcloud ai endpoints deploy-model "$endpoint_id" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --model="$model_id" \
+            --display-name="$model_name" \
+            --machine-type="${MACHINE_TYPE:-n1-standard-2}" \
+            --min-replica-count=1 \
+            --max-replica-count=1 \
+            --traffic-split=0=100
+          echo "Desplegado modelo $model_id en endpoint $endpoint_id ($REGION)."
