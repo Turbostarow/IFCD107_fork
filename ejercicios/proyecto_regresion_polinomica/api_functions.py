@@ -183,6 +183,7 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
             encoding="utf-8",
         )
         return jsonify(result), 200
+    # 17. Capturar errores por casuística y continuar con las demás; no ocultar traceback en el log ni revelar datos sensibles en la respuesta.
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
         log_path.write_text(f"algorithm={algorithm}\nrun_id={run_id}\nerror={exc}\n", encoding="utf-8")
         return jsonify(error=f"No se pudo entrenar la casuística: {exc}",

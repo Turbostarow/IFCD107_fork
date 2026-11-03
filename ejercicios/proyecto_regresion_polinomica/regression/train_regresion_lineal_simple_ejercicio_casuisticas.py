@@ -286,7 +286,8 @@ def train_algorithm_frame_lineal_regression(
 # CONFIGURACIÓN ESPECÍFICA DEL MÉTODO
 # ALGORITMO: Regresión Lineal Simple
 # - Identificador API esperado: linear_simple.
-# - Espacio de hiperparámetros orientativo: fit_intercept (verdadero/falso); no hay penalización. RandomizedSearchCV tiene solo dos configuraciones distintas; no pedir más iteraciones que candidatos únicos.
+# - Espacio de hiperparámetros orientativo: fit_intercept (verdadero/falso); no hay penalización. 
+#           RandomizedSearchCV tiene solo dos configuraciones distintas; no pedir más iteraciones que candidatos únicos.
 # - Seleccionar exactamente una variable independiente y justificar la selección antes del ajuste.
 # - Explorar dispersión predictor-y y comprobar si una recta resulta razonable; señalar relaciones curvas.
 # - Ajustar LinearRegression con fit_intercept como hiperparámetro candidato.
