@@ -34,6 +34,10 @@ from regression.adaboost_regressor import build_adaboost_regression_pipeline
 from regression.gradient_boosting_regressor import build_gradient_boosting_regression_pipeline
 from regression.parameter_search import PARAMETER_CATALOG
 from regression.train_regresion_lineal_simple_ejercicio_casuisticas import train_algorithm_frame_lineal_regression
+from regression.train_regresion_lineal_multiple_ejercicio_casuisticas import train_algorithm_frame_lineal_multiple_regression
+from regression.train_regresion_polinomial_ejercicio_casuisticas import train_algorithm_frame_polynomial_regression
+from regression.train_regresion_cuantilica_ejercicio_casuisticas import train_algorithm_frame_quantile_regression
+
 
 # Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
 MAX_POINTS = 100_000
@@ -163,10 +167,31 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
         if len(frame) > MAX_POINTS:
             raise ValueError(f"El CSV supera el límite de {MAX_POINTS} filas.")
         # como solo hay un algoritmo llamo al de regresion lineal 
-        result = train_algorithm_frame_lineal_regression(
-            frame, base / "resultados", run_id,
-            cv=cv, n_iter=n_iter, random_state=random_state,
-        )
+        # "linear_simple" o "linear_multiple"
+        result = {}
+        if algorithm == "linear_simple":
+            result = train_algorithm_frame_lineal_regression(
+                frame, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
+        elif algorithm == "linear_multiple":
+            result = train_algorithm_frame_lineal_multiple_regression(
+                frame, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
+        elif algorithm == "polynomial":
+            result = train_algorithm_frame_polynomial_regression(
+                frame, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
+        elif algorithm == "quantile":
+            result = train_algorithm_frame_quantile_regression(
+                frame, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
+        else:
+            raise ValueError(f"Algoritmo no reconocido: {algorithm}.")
+
         artifact_paths = {
             key: str(Path(value).relative_to(output_root))
             for key, value in result["artifacts"].items()

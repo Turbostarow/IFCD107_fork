@@ -86,7 +86,7 @@ def _make_estimator(algorithm: str):
         return TheilSenRegressor(random_state=RANDOM_STATE, max_subpopulation=500)
     if algorithm == "quantile":
         from sklearn.linear_model import QuantileRegressor
-        return QuantileRegressor(solver="highs")
+        return QuantileRegressor()
     if algorithm == "decision_tree":
         from sklearn.tree import DecisionTreeRegressor
         return DecisionTreeRegressor(random_state=RANDOM_STATE)
@@ -164,9 +164,11 @@ def _search_spaces(algorithm: str) -> tuple[list[dict], list[dict]]:
                 [{"model__max_subpopulation": [100, 150, 250, 350, 500, 750]}])
     if algorithm == "quantile":
         return ([{"model__quantile": [0.25, 0.5, 0.75],
-                  "model__alpha": [0.0, 0.01, 0.1]}],
+                  "model__alpha": [0.0, 0.01, 0.1],
+                  "model__solver":['highs-ds', 'highs-ipm', 'highs']}],
                 [{"model__quantile": [0.1, 0.25, 0.5, 0.75, 0.9],
-                  "model__alpha": loguniform(1e-5, 1.0)}])
+                  "model__alpha": loguniform(1e-5, 1.0),
+                  "model__solver":['highs-ds', 'highs-ipm', 'highs']}])
     if algorithm == "decision_tree":
         return ([{"model__max_depth": [None, 3, 5, 10],
                   "model__min_samples_leaf": [1, 2, 5]}],
