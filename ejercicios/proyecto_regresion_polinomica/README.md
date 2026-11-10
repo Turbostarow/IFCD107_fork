@@ -25,6 +25,31 @@ docker compose up -d --build regression-api
 
 Si se ejecuta en Linux y la carpeta local no permite escribir al usuario `app` del contenedor, asigna permisos de escritura a `runs/` para el UID configurado en la imagen o ajusta el usuario del servicio según la política local. No es necesario borrar volúmenes Docker para aplicar el montaje de carpeta local.
 
+### Interfaz web de Random Forest
+
+El servicio `random-forest-ui` integra el laboratorio interactivo de regresión en este mismo Docker Compose. Se construye desde `random_forest_ui/`, con dependencias independientes de la API Flask. Arranca con:
+
+```powershell
+cd D:\onedrive\Documentos\ChatGPT\ifcd107\ejercicios\proyecto_regresion_polinomica
+docker compose up -d --build random-forest-ui
+```
+
+Abre [http://localhost:8501](http://localhost:8501). Puedes cambiar el puerto mediante `RANDOM_FOREST_UI_PORT` en `.env` (valor predeterminado: `8501`). El puerto se publica únicamente en la interfaz local del equipo. También se inicia al ejecutar `docker compose up -d --build` para el conjunto del proyecto. Este laboratorio no necesita arrancar PostgreSQL, Ollama ni la API.
+
+La interfaz incluye datos sintéticos, carga de CSV, selección de objetivo y predictores numéricos, controles de hiperparámetros con reentrenamiento automático, R², RMSE, MAE, Pearson, bias, gráficos de residuos, importancia de variables y descarga de predicciones e historial. La partición de prueba permanece fija mientras no cambien los datos, su proporción o la semilla. Los valores ausentes de los predictores se imputan con medianas aprendidas exclusivamente en entrenamiento.
+
+Las métricas principales se calculan en prueba. Bias = media(predicho − observado); residuo = observado − predicho. Pearson se muestra como no definido cuando alguna serie es constante. Los predictores categóricos deben codificarse previamente. `max_samples` y OOB se activan solo con bootstrap; Poisson necesita objetivos no negativos con suma positiva. Cada configuración crea un bosque nuevo, por lo que `warm_start` no conserva árboles entre cambios.
+
+El entrenamiento se ejecuta dentro del contenedor de la interfaz y no usa las rutas autenticadas de la API. Los archivos cargados y el historial pertenecen a la sesión: descarga los resultados antes de cerrarla o recrear el contenedor. La exploración reiterada de la prueba puede sobreajustar la elección de parámetros; reserva un conjunto externo para evaluar el modelo final.
+
+Para consultar el estado y los logs o detener solo la interfaz:
+
+```powershell
+docker compose ps random-forest-ui
+docker compose logs --tail 100 random-forest-ui
+docker compose stop random-forest-ui
+```
+
 ### PostgreSQL: resultados de las casuísticas
 
 Compose levanta un servicio `postgres` con la base `regression_results` y conserva sus datos en el volumen `postgres_data`. Al crear el volumen por primera vez, PostgreSQL ejecuta `database/init/001_regression_results.sql` para crear estas tablas:
@@ -73,6 +98,47 @@ search_cv=5
 
 En Random Forest se pueden enviar esos mismos campos en JSON o multipart. Con `search=false` se conserva el ajuste directo usando los parámetros indicados en la petición.
 
+
+## Predecir con un modelo .joblib y un CSV
+
+Guarda el modelo o pipeline entrenado con `joblib.dump(modelo, "modelo.joblib")`. El endpoint usa `joblib.load` y admite archivos joblib comprimidos o sin compresión. Los entrenamientos existentes del proyecto conservan su formato `.pkt`; esta ruta de inferencia recibe `.joblib`.
+
+`POST /api/v1/regresion/predecir/csv` requiere el token Bearer habitual y un cuerpo `multipart/form-data`:
+
+| Campo | Tipo | Contenido |
+| --- | --- | --- |
+| `model` | Archivo | Modelo `.joblib` de confianza, máximo 50 MB. |
+| `file` | Archivo | CSV UTF-8 con cabecera y features, máximo 4 MB y 100.000 filas. |
+| `separator` | Texto opcional | Separador CSV: `,` (predeterminado), `;` o tabulador. |
+| `decimal` | Texto opcional | Separador decimal: `.` (predeterminado) o `,`. Debe ser distinto de `separator`. |
+
+El endpoint carga el modelo y llama a `predict` sin entrenarlo. Conserva el preprocesamiento del pipeline. Si el modelo guarda `feature_names_in_`, exige sus columnas y las ordena como en entrenamiento; las columnas extra se ignoran y se enumeran en `ignored_columns`. Si el modelo se entrenó con arrays, el CSV debe contener únicamente las features y en el mismo orden original. La clase polinómica propia del proyecto requiere la columna `x`; `ejemplos/features_prediccion.csv` sirve para probarla. Para otros modelos, proporciona las features con sus nombres y tipos originales, incluidas las categorías si el pipeline las procesa. No hace falta incluir la variable objetivo.
+
+Ejemplo de respuesta para dos filas:
+
+```json
+{
+  "n_rows": 2,
+  "feature_columns": ["x"],
+  "ignored_columns": [],
+  "predictions": [
+    {"row": 1, "prediction": 12.5},
+    {"row": 2, "prediction": 15.2}
+  ]
+}
+```
+
+`row` empieza en 1 y sigue el orden de las filas de datos del CSV. Solo se admite regresión de un objetivo, con una predicción numérica finita por fila. No se calculan métricas sin valores observados. La petición completa admite hasta 56 MB; las demás rutas conservan su límite general de 5 MB. Los errores devuelven JSON: 400 si faltan archivos o sus extensiones no son correctas, 401 sin autenticación, 413 por tamaño y 422 por CSV, modelo o features incompatibles.
+
+Los `.joblib` utilizan serialización basada en pickle: **carga exclusivamente archivos de confianza**, porque deserializarlos puede ejecutar código Python dentro de la API. La extensión `.joblib` no garantiza seguridad. Utiliza las mismas versiones de Python y dependencias con las que se guardó el modelo, y conserva disponibles sus módulos de clases personalizadas. Los archivos recibidos se usan en memoria y no se guardan como nuevos artefactos.
+
+En Postman, importa la colección actualizada, ejecuta **Obtener token** y abre **Predecir desde modelo .joblib y CSV de features**. En Body → form-data selecciona el `.joblib` en `model` y tu CSV en `file`; no añadas manualmente `Content-Type`, pues Postman genera el boundary multipart.
+
+Para aplicar el endpoint a una API Docker ya iniciada:
+
+```powershell
+docker compose up -d --build --no-deps regression-api
+```
 
 ## Random Forest
 

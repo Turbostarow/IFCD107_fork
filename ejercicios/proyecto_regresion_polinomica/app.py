@@ -13,6 +13,7 @@ Mapa de rutas:
 - GET  /api/v1/health: estado del servicio; no necesita token.
 - GET  /api/v1/regresion/parametros: listas de valores candidatos por modelo.
 - POST /api/v1/auth/token: recibe username/password; devuelve Bearer.
+- POST /api/v1/regresion/predecir/csv: modelo .joblib de confianza y CSV de features.
 - POST /api/v1/regresion/polinomica: puntos x/y en JSON.
 - POST /api/v1/regresion/polinomica/csv: columnas x/y en CSV.
 - POST /api/v1/regresion/polinomica/randomizedsearch: búsqueda desde JSON o CSV.
@@ -57,6 +58,7 @@ from api_functions import (
 )
 from regression.casuisticas import ALGORITHM_LABELS
 from regression.parameter_search import PARAMETER_CATALOG
+from regression.inference import predict_csv
 
 
 # Carga variables locales antes de inicializar el diccionario de usuarios y la
@@ -148,7 +150,8 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
 
     @app.errorhandler(RequestEntityTooLarge)
     def too_large(_error):
-        return jsonify(error="El cuerpo supera el límite de 5 MB."), 413
+        limit = (request.max_content_length or app.config["MAX_CONTENT_LENGTH"]) // (1024 * 1024)
+        return jsonify(error=f"El cuerpo supera el límite de {limit} MB."), 413
 
     @app.post("/api/v1/auth/token")
     def issue_token():
@@ -230,6 +233,37 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
             models=PARAMETER_CATALOG.as_items(),
             search_defaults={"n_iter": 10, "cv": 5, "scoring": "neg_mean_squared_error"},
         )
+
+    @app.post("/api/v1/regresion/predecir/csv")
+    @require_token
+    def predict_model_csv():
+        """Recibe un .joblib de confianza y un CSV; devuelve una predicción por fila."""
+        # Los bosques serializados pueden superar el límite general de 5 MB.
+        # Flask 3.1 admite ampliar el límite solo para esta petición autenticada.
+        request.max_content_length = 56 * 1024 * 1024
+        uploaded_model = request.files.get("model")
+        uploaded_csv = request.files.get("file")
+        if uploaded_model is None or not uploaded_model.filename:
+            return jsonify(error="Falta el modelo .joblib en el campo multipart 'model'."), 400
+        if uploaded_csv is None or not uploaded_csv.filename:
+            return jsonify(error="Falta el CSV de features en el campo multipart 'file'."), 400
+        if not uploaded_model.filename.lower().endswith(".joblib"):
+            return jsonify(error="El archivo 'model' debe tener extensión .joblib."), 400
+        if not uploaded_csv.filename.lower().endswith(".csv"):
+            return jsonify(error="El archivo 'file' debe tener extensión .csv."), 400
+        raw_model = uploaded_model.read(50 * 1024 * 1024 + 1)
+        raw_csv = uploaded_csv.read(4 * 1024 * 1024 + 1)
+        if len(raw_model) > 50 * 1024 * 1024 or len(raw_csv) > 4 * 1024 * 1024:
+            return jsonify(error="Límites: modelo de 50 MB y CSV de 4 MB."), 413
+        if not raw_model or not raw_csv:
+            return jsonify(error="El modelo y el CSV no pueden estar vacíos."), 400
+        try:
+            result = predict_csv(raw_model, raw_csv,
+                                 separator=request.form.get("separator", ","),
+                                 decimal=request.form.get("decimal", "."))
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 422
+        return jsonify(result), 200
 
     @app.post("/api/v1/regresion/polinomica")
     @require_token

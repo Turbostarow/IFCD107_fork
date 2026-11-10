@@ -1,6 +1,4 @@
 __pycache__/
 *.py[cod]
 .venv/
-runs/*
-!runs/.gitkeep
 .env
