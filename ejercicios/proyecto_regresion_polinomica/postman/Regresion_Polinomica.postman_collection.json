@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "API de regresión y análisis de La Primitiva",
-    "description": "Health, autenticación Bearer, regresión polinómica, KNN, Random Forest, SVR, AdaBoostRegressor y GradientBoostingRegressor. Ejecuta Obtener token antes de las solicitudes de entrenamiento. Incluye ejecución controlada de los analizadores históricos de La Primitiva con CSV.",
+    "description": "Health, autenticación Bearer, regresión polinómica, KNN, Random Forest, SVR, AdaBoostRegressor y GradientBoostingRegressor. Ejecuta Obtener token antes de las solicitudes de entrenamiento. Incluye ejecución controlada de los analizadores históricos de La Primitiva con CSV. Incluye una carpeta de casuísticas para comparar GridSearchCV y RandomizedSearchCV en 21 algoritmos de regresión. Incluye inferencia desde un modelo .joblib de confianza y un CSV de features, sin reentrenamiento.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -102,6 +102,66 @@
         },
         "url": "{{baseUrl}}/api/v1/auth/token"
       }
+    },
+    {
+      "name": "Predecir desde modelo .joblib y CSV de features",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "model",
+              "type": "file",
+              "src": null,
+              "description": "Selecciona un .joblib de confianza guardado con joblib.dump (máximo 50 MB)."
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "ejemplos/features_prediccion.csv",
+              "description": "CSV UTF-8 con las features originales. El ejemplo x sirve para el modelo polinómico."
+            },
+            {
+              "key": "separator",
+              "type": "text",
+              "value": ",",
+              "description": "Separador del CSV: coma, punto y coma o tabulador."
+            },
+            {
+              "key": "decimal",
+              "type": "text",
+              "value": ".",
+              "description": "Separador decimal: punto o coma."
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/regresion/predecir/csv",
+        "description": "Ejecuta Obtener token. Selecciona model (.joblib) y file (CSV de features sin necesidad de objetivo). Usa solo modelos de confianza: joblib.load puede ejecutar código al cargar. Reutiliza el preprocesamiento guardado, sin entrenar. Devuelve predictions con row (1 = primera fila de datos) y prediction. Los modelos con nombres seleccionan y ordenan las columnas automáticamente; informa las columnas extra ignoradas. Los modelos entrenados con arrays requieren el orden original. El polinomio propio requiere x. Máximo 100000 filas, CSV 4 MB, modelo 50 MB. 400: formulario inválido; 401: sin token; 413: tamaño; 422: modelo/CSV incompatible. Si usas el CSV de ejemplo, selecciona un modelo polinómico compatible."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Predicción correcta\", function () { pm.response.to.have.status(200); });",
+              "if (pm.response.code === 200) {",
+              "  const result = pm.response.json();",
+              "  pm.test(\"Una predicción por fila\", function () { pm.expect(result.predictions.length).to.eql(result.n_rows); });",
+              "  pm.test(\"Predicciones numéricas\", function () { result.predictions.forEach(p => { pm.expect(p.prediction).to.be.a(\"number\"); }); });",
+              "}"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Ajustar desde JSON",
@@ -838,6 +898,18 @@
                       "type": "text"
                     },
                     {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
                       "key": "file",
                       "type": "file",
                       "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
@@ -890,6 +962,18 @@
                       "key": "reference",
                       "value": "eda_02_valores_ausentes",
                       "type": "text"
+                    },
+                    {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
                     },
                     {
                       "key": "file",
@@ -946,6 +1030,18 @@
                       "type": "text"
                     },
                     {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
                       "key": "file",
                       "type": "file",
                       "src": "../proyecto_eda_preprocesado_latex/datos/03_valores_atipicos.csv"
@@ -998,6 +1094,18 @@
                       "key": "reference",
                       "value": "eda_04_categorias_raras",
                       "type": "text"
+                    },
+                    {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
                     },
                     {
                       "key": "file",
@@ -1054,6 +1162,18 @@
                       "type": "text"
                     },
                     {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
                       "key": "file",
                       "type": "file",
                       "src": "../proyecto_eda_preprocesado_latex/datos/05_duplicados.csv"
@@ -1106,6 +1226,18 @@
                       "key": "reference",
                       "value": "eda_06_sesgo_y_heterocedasticidad",
                       "type": "text"
+                    },
+                    {
+                      "key": "min_correlation",
+                      "value": "0",
+                      "type": "text",
+                      "description": "Correlación absoluta mínima con y para conservar una característica numérica (0-1)."
+                    },
+                    {
+                      "key": "max_correlation",
+                      "value": "1",
+                      "type": "text",
+                      "description": "Correlación absoluta máxima con y para conservar una característica numérica (0-1)."
                     },
                     {
                       "key": "file",
@@ -1365,6 +1497,1482 @@
               ]
             },
             "url": "{{baseUrl}}/api/v1/primitiva/cnn/csv"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casuísticas comparativas de regresión",
+      "description": "Una solicitud por algoritmo. Cada ejecución compara GridSearchCV y RandomizedSearchCV con validación cruzada, selecciona por RMSE y genera PDF con predicciones frente a valores reales. Ejecuta primero Obtener token.",
+      "item": [
+        {
+          "name": "Regresión Lineal Simple - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Lineal Simple sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Lineal Simple: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_linear_simple\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_linear_simple",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/linear_simple/csv"
+          }
+        },
+        {
+          "name": "Regresión Lineal Múltiple - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Lineal Múltiple sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Lineal Múltiple: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_linear_multiple\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_linear_multiple",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/linear_multiple/csv"
+          }
+        },
+        {
+          "name": "Regresión Ridge (L2) - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Ridge (L2) sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Ridge (L2): entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_ridge\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_ridge",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/ridge/csv"
+          }
+        },
+        {
+          "name": "Regresión Lasso (L1) - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Lasso (L1) sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Lasso (L1): entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_lasso\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_lasso",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/lasso/csv"
+          }
+        },
+        {
+          "name": "Elastic Net - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Elastic Net sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Elastic Net: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_elastic_net\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_elastic_net",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/elastic_net/csv"
+          }
+        },
+        {
+          "name": "Regresión Lineal Bayesiana - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Lineal Bayesiana sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Lineal Bayesiana: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_bayesian_ridge\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_bayesian_ridge",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/bayesian_ridge/csv"
+          }
+        },
+        {
+          "name": "Regresión Polinomial - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Polinomial sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Polinomial: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_polynomial\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_polynomial",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/polynomial/csv"
+          }
+        },
+        {
+          "name": "Regresión de Huber - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión de Huber sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión de Huber: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_huber\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_huber",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/huber/csv"
+          }
+        },
+        {
+          "name": "Regresión RANSAC - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión RANSAC sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión RANSAC: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_ransac\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_ransac",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/ransac/csv"
+          }
+        },
+        {
+          "name": "Regresión Theil-Sen - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Theil-Sen sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Theil-Sen: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_theil_sen\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_theil_sen",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/theil_sen/csv"
+          }
+        },
+        {
+          "name": "Regresión Cuantílica - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Regresión Cuantílica sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regresión Cuantílica: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_quantile\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_quantile",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/quantile/csv"
+          }
+        },
+        {
+          "name": "Árboles de Decisión - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Árboles de Decisión sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Árboles de Decisión: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_decision_tree\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_decision_tree",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/decision_tree/csv"
+          }
+        },
+        {
+          "name": "Random Forest Regressor - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Random Forest Regressor sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Random Forest Regressor: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_random_forest\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_random_forest",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/random_forest/csv"
+          }
+        },
+        {
+          "name": "Gradient Boosting Regressor - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Gradient Boosting Regressor sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Gradient Boosting Regressor: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_gradient_boosting\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_gradient_boosting",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/gradient_boosting/csv"
+          }
+        },
+        {
+          "name": "XGBoost - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena XGBoost sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"XGBoost: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_xgboost\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_xgboost",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/xgboost/csv"
+          }
+        },
+        {
+          "name": "LightGBM - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena LightGBM sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"LightGBM: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_lightgbm\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_lightgbm",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/lightgbm/csv"
+          }
+        },
+        {
+          "name": "CatBoost - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena CatBoost sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"CatBoost: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_catboost\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_catboost",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/catboost/csv"
+          }
+        },
+        {
+          "name": "SVR - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena SVR sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SVR: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_svr\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_svr",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/svr/csv"
+          }
+        },
+        {
+          "name": "KNN para Regresión - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena KNN para Regresión sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"KNN para Regresión: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_knn\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_knn",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/knn/csv"
+          }
+        },
+        {
+          "name": "Procesos Gaussianos - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena Procesos Gaussianos sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Procesos Gaussianos: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_gaussian_process\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_gaussian_process",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/gaussian_process/csv"
+          }
+        },
+        {
+          "name": "MLPRegressor - GridSearchCV + RandomizedSearchCV",
+          "description": "Entrena MLPRegressor sobre el CSV de casuísticas. Devuelve mejor método, hiperparámetros, métricas, informe PDF y resultados de ambas búsquedas. El archivo de ejemplo tiene objetivo y y usa las características disponibles.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"MLPRegressor: entrenamiento correcto\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var result = pm.response.json();",
+                  "  pm.test(\"Incluye mejor búsqueda e hiperparámetros\", function () {",
+                  "    pm.expect([\"GridSearchCV\", \"RandomizedSearchCV\"]).to.include(result.winner);",
+                  "    pm.expect(result.best_parameters).to.be.an(\"object\");",
+                  "  });",
+                  "  pm.test(\"Incluye métricas y PDF\", function () {",
+                  "    pm.expect(result.metrics.rmse).to.be.a(\"number\");",
+                  "    pm.expect(result.artifacts.report_pdf).to.be.a(\"string\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"last_casuistica_mlp\", JSON.stringify(result));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reference",
+                  "value": "casuistica_mlp",
+                  "type": "text"
+                },
+                {
+                  "key": "cv",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Número de pliegues de validación cruzada."
+                },
+                {
+                  "key": "n_iter",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Candidatos de RandomizedSearchCV."
+                },
+                {
+                  "key": "random_state",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/regresion/casuisticas/mlp/csv"
           }
         }
       ]
