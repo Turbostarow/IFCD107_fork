@@ -37,6 +37,17 @@ from regression.train_regresion_lineal_simple_ejercicio_casuisticas import train
 from regression.train_regresion_lineal_multiple_ejercicio_casuisticas import train_algorithm_frame_lineal_multiple_regression
 from regression.train_regresion_polinomial_ejercicio_casuisticas import train_algorithm_frame_polynomial_regression
 from regression.train_regresion_cuantilica_ejercicio_casuisticas import train_algorithm_frame_quantile_regression
+from regression.results_db import mark_run_failed, register_run
+
+
+def _mark_casuistica_failed(run_id, error):
+    """Intenta actualizar el estado sin ocultar el error original del entrenamiento."""
+    try:
+        mark_run_failed(run_id, str(error))
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "No se pudo registrar en PostgreSQL el fallo de run_id=%s.", run_id
+        )
 
 
 # Límites del procesamiento aplicados tanto a endpoints JSON como a CSV.
@@ -92,7 +103,9 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
     """Ejecuta una casuística de regresión elegida por slug validado en Flask."""
     import io
     import pandas as pd
-    from regression.casuisticas import ALGORITHM_LABELS, train_algorithm_frame
+    from regression.casuisticas import (
+        ALGORITHM_LABELS, persist_casuistica_results, train_algorithm_frame,
+    )
 
     if algorithm not in ALGORITHM_LABELS:
         return jsonify(error="Algoritmo de casuística no reconocido."), 404
@@ -107,6 +120,7 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
     log_path = log_dir / f"{run_id}.log"
     input_path.write_bytes(raw_csv)
     try:
+        register_run(run_id, reference, algorithm, ALGORITHM_LABELS[algorithm])
         frame = pd.read_csv(io.BytesIO(raw_csv), encoding="utf-8-sig")
         if len(frame) > MAX_POINTS:
             raise ValueError(f"El CSV supera el límite de {MAX_POINTS} filas.")
@@ -129,13 +143,16 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
             f"metrics={json.dumps(result['metrics'])}\n",
             encoding="utf-8",
         )
+        persist_casuistica_results(run_id, result)
         return jsonify(result), 200
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+        _mark_casuistica_failed(run_id, exc)
         log_path.write_text(f"algorithm={algorithm}\nrun_id={run_id}\nerror={exc}\n", encoding="utf-8")
         return jsonify(error=f"No se pudo entrenar la casuística: {exc}",
                        reference=reference, run_id=run_id), 422
     except Exception:
         logging.getLogger(__name__).exception("Error entrenando la casuística %s.", algorithm)
+        _mark_casuistica_failed(run_id, "Error interno durante el entrenamiento.")
         log_path.write_text(f"algorithm={algorithm}\nrun_id={run_id}\nerror=Error interno\n", encoding="utf-8")
         return jsonify(error="Error interno durante el entrenamiento de la casuística.",
                        reference=reference, run_id=run_id), 500
@@ -145,7 +162,7 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
     """Ejecuta una casuística de regresión elegida por slug validado en Flask."""
     import io
     import pandas as pd
-    from regression.casuisticas import ALGORITHM_LABELS, train_algorithm_frame
+    from regression.casuisticas import ALGORITHM_LABELS, persist_casuistica_results
 
     if algorithm not in ALGORITHM_LABELS:
         return jsonify(error="Algoritmo de casuística no reconocido."), 404
@@ -159,14 +176,15 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
     input_path = input_dir / f"{run_id}.csv"
     log_path = log_dir / f"{run_id}.log"
     input_path.write_bytes(raw_csv)
-    # aqui empiezan loa cambios del ejercicio 
+    # Aqui empiezan los cambios del ejercicio.
     # por cada nombre de algoritmo crear un método en
     # el py correspondiente y llamarlo
     try:
+        register_run(run_id, reference, algorithm, ALGORITHM_LABELS[algorithm])
         frame = pd.read_csv(io.BytesIO(raw_csv), encoding="utf-8-sig")
         if len(frame) > MAX_POINTS:
             raise ValueError(f"El CSV supera el límite de {MAX_POINTS} filas.")
-        # como solo hay un algoritmo llamo al de regresion lineal 
+        # Como solo hay un algoritmo, llamo al entrenador correspondiente.
         # "linear_simple" o "linear_multiple"
         result = {}
         if algorithm == "linear_simple":
@@ -207,14 +225,17 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
             f"metrics={json.dumps(result['metrics'])}\n",
             encoding="utf-8",
         )
+        persist_casuistica_results(run_id, result)
         return jsonify(result), 200
     # 17. Capturar errores por casuística y continuar con las demás; no ocultar traceback en el log ni revelar datos sensibles en la respuesta.
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+        _mark_casuistica_failed(run_id, exc)
         log_path.write_text(f"algorithm={algorithm}\nrun_id={run_id}\nerror={exc}\n", encoding="utf-8")
         return jsonify(error=f"No se pudo entrenar la casuística: {exc}",
                        reference=reference, run_id=run_id), 422
     except Exception:
         logging.getLogger(__name__).exception("Error entrenando la casuística %s.", algorithm)
+        _mark_casuistica_failed(run_id, "Error interno durante el entrenamiento.")
         log_path.write_text(f"algorithm={algorithm}\nrun_id={run_id}\nerror=Error interno\n", encoding="utf-8")
         return jsonify(error="Error interno durante el entrenamiento de la casuística.",
                        reference=reference, run_id=run_id), 500

@@ -190,6 +190,7 @@ def train_algorithm_frame_polynomial_regression(
             "y_true": y_test.to_numpy(), "y_predicted": predicted,
             "rmse": float(np.sqrt(mean_squared_error(y_test, predicted))),
             "r2": float(r2_score(y_test, predicted)),
+            "r2 ajustado": float(r2_ajustado(y_test,predicted,X.shape[1]))
         }
     
     # 13. Evaluar ambos best_estimator_ sobre el mismo test reservado y calcular R², RMSE, MAE y sesgo; 

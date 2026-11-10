@@ -15,6 +15,40 @@ python app.py
 
 En macOS/Linux, activa con `source .venv/bin/activate`, instala `requirements.txt` y ejecuta `python app.py`.
 
+### Ejecución con Docker Compose
+
+El servicio `regression-api` monta `./runs` del proyecto en `/app/runs` dentro del contenedor. Los informes, modelos, CSV y el registro de auditoría quedan así en la carpeta local `runs/` y sobreviven a la recreación del contenedor. En Windows con Docker Desktop, inicia el servicio desde la raíz del proyecto para que la ruta relativa `./runs` corresponda a esta carpeta:
+
+```powershell
+docker compose up -d --build regression-api
+```
+
+Si se ejecuta en Linux y la carpeta local no permite escribir al usuario `app` del contenedor, asigna permisos de escritura a `runs/` para el UID configurado en la imagen o ajusta el usuario del servicio según la política local. No es necesario borrar volúmenes Docker para aplicar el montaje de carpeta local.
+
+### PostgreSQL: resultados de las casuísticas
+
+Compose levanta un servicio `postgres` con la base `regression_results` y conserva sus datos en el volumen `postgres_data`. Al crear el volumen por primera vez, PostgreSQL ejecuta `database/init/001_regression_results.sql` para crear estas tablas:
+
+- `regression_runs`: una fila al comenzar cada ejecución, con `run_id`, fecha, referencia, algoritmo, nombre del modelo y estado.
+- `regression_run_files`: una fila por cada informe, CSV, modelo, resumen, archivo de búsqueda y log generado por la API.
+- `regression_run_metrics`: dos filas por ejecución completada, una para `GridSearchCV` y otra para `RandomizedSearchCV`. Incluye RMSE de validación y prueba, R² de prueba, y los hiperparámetros y métricas completas serializados como texto JSON.
+
+La API registra el inicio antes de entrenar. Al terminar, guarda los archivos y las dos filas de métricas; si falla el entrenamiento, marca la ejecución como `failed`. La creación de tablas también se comprueba desde el código, por lo que se añaden si ya existía el volumen de PostgreSQL antes de incorporar el esquema.
+
+Configura en `.env` las variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_PORT`; sus valores de desarrollo están en `.env.example`. Cambia la contraseña de ejemplo antes de usar la base fuera del equipo local. Para iniciar la base y la API con sus dependencias:
+
+```powershell
+docker compose up -d --build regression-api
+```
+
+Para consultar las ejecuciones más recientes (ajusta usuario y base si cambiaste `.env`):
+
+```powershell
+docker compose exec postgres psql -U regression -d regression_results -c "SELECT run_id, started_at, model_name, status FROM regression_runs ORDER BY started_at DESC LIMIT 20;"
+docker compose exec postgres psql -U regression -d regression_results -c "SELECT run_id, search_name, cv_rmse, test_rmse, test_r2, parameters_text, metrics_text FROM regression_run_metrics ORDER BY created_at DESC LIMIT 20;"
+docker compose exec postgres psql -U regression -d regression_results -c "SELECT run_id, file_type, file_path FROM regression_run_files ORDER BY created_at DESC LIMIT 50;"
+```
+
 La API carga automáticamente los valores del archivo local `.env`. En esta copia, `.env` contiene una contraseña aleatoria para `admin` y un secreto aleatorio para firmar tokens. Para Postman, copia `API_ADMIN_PASSWORD` desde ese archivo a la variable de colección `password`.
 
 `.env` está excluido de Git y no debe compartirse ni incluirse en el ZIP distribuible. Para configurar otro entorno, copia `.env.example` a `.env` y asigna credenciales propias. Mantén `API_TOKEN_SECRET` estable entre procesos y reinicios. Si no existe, el ejemplo genera un secreto temporal, por lo que los tokens se invalidan al reiniciar. En producción, utiliza contraseñas con hash y un gestor de secretos.

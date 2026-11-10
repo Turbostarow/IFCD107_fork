@@ -20,6 +20,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures, StandardScaler
 
 from regression.eda_preprocesado import EdaPreprocesado
+from regression.results_db import save_casuistica_results
 
 
 ALGORITHM_LABELS = {
@@ -50,6 +51,11 @@ TARGET_COLUMN = "y"
 ID_COLUMN = "expediente_id"
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
+
+
+def persist_casuistica_results(run_id: str, summary: dict) -> bool:
+    """Persiste en PostgreSQL los artefactos y las dos búsquedas terminadas."""
+    return save_casuistica_results(run_id, summary)
 
 
 def _native_scalar(value):
@@ -141,11 +147,72 @@ def _search_spaces(algorithm: str) -> tuple[list[dict], list[dict]]:
                   "model__l1_ratio": [0.1, 0.5, 0.9]}],
                 [{"model__alpha": loguniform(1e-4, 1e2),
                   "model__l1_ratio": loguniform(0.01, 0.99)}])
+    # max_iter=300: máximo de iteraciones del algoritmo.
+    # El proceso puede detenerse antes si alcanza la convergencia.
+
+    # tol=1e-3: tolerancia usada para decidir si el modelo ha convergido.
+    # Un valor menor exige un ajuste más preciso y puede requerir más iteraciones.
+
+    # alpha_1=1e-6 y alpha_2=1e-6: parámetros de la distribución Gamma
+    # usada como prior para alpha. alpha_1 es la forma y alpha_2 es la tasa.
+
+    # lambda_1=1e-6 y lambda_2=1e-6: parámetros de la distribución Gamma
+    # usada como prior para lambda. lambda_1 es la forma y lambda_2 es la tasa.
+
+    # alpha_init=None: valor inicial de la precisión del ruido.
+    # Si se deja en None, se inicializa como 1 / Var(y).
+
+    # lambda_init=None: valor inicial de la precisión de los coeficientes.
+    # Si se deja en None, empieza en 1.
+
+    # compute_score=False: si es True, calcula la log-verosimilitud marginal
+    # en cada iteración. Permite observar la evolución del ajuste, pero añade coste.
+
+    # fit_intercept=True: indica si el modelo estima un término independiente.
+    # El intercepto no se trata como parámetro probabilístico y no tiene varianza
+    # asociada. Si es False, se espera que los datos estén centrados.
+
+    # copy_X=True: copia X antes de procesarla.
+    # Si es False, el algoritmo podría modificar la matriz original.
+
+    # verbose=False: muestra información del progreso durante el ajuste.
     if algorithm == "bayesian_ridge":
-        return ([{"model__alpha_1": [1e-6, 1e-5, 1e-4],
-                  "model__lambda_1": [1e-6, 1e-5, 1e-4]}],
-                [{"model__alpha_1": loguniform(1e-7, 1e-3),
-                  "model__lambda_1": loguniform(1e-7, 1e-3)}])
+        return ([
+        {
+            "model__alpha_1": [1e-6, 1e-4],
+            "model__alpha_2": [1e-6, 1e-4],
+            "model__lambda_1": [1e-6, 1e-4],
+            "model__lambda_2": [1e-6, 1e-4],
+            "model__max_iter": [300, 1000],
+            "model__tol": [1e-3, 1e-4],
+            "model__alpha_init": [None, 0.1, 1.0, 10.0],
+            "model__lambda_init": [None, 0.1, 1.0, 10.0],
+            "model__compute_score": [False, True],
+            "model__fit_intercept": [True, False],
+            "model__copy_X": [True, False],
+        }],
+
+        # La búsqueda aleatoria puede combinar los distintos parámetros.
+        [{
+        "model__max_iter": [300, 500, 1000],
+        "model__tol": loguniform(1e-5, 1e-2),
+
+        # Priors Gamma de alpha (precisión del ruido).
+        "model__alpha_1": loguniform(1e-8, 1e-3),
+        "model__alpha_2": loguniform(1e-8, 1e-3),
+
+        # Priors Gamma de lambda (precisión de los coeficientes).
+        "model__lambda_1": loguniform(1e-8, 1e-3),
+        "model__lambda_2": loguniform(1e-8, 1e-3),
+
+        # Valores iniciales; None permite usar la inicialización automática.
+        "model__alpha_init": [None, 0.01, 0.1, 1.0, 10.0],
+        "model__lambda_init": [None, 0.01, 0.1, 1.0, 10.0],
+
+        "model__compute_score": [False, True],
+        "model__fit_intercept": [True, False],
+        "model__copy_X": [True, False],
+          }])
     if algorithm == "polynomial":
         return ([{"polynomial__degree": [2, 3, 4]}],
                 [{"polynomial__degree": [2, 3, 4, 5]}])

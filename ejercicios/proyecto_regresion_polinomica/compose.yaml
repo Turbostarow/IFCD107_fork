@@ -1,4 +1,4 @@
-include:
+#include:
   # Dify mantiene su Compose oficial en su propio repositorio y directorio.
   # Consulte README.md para clonar el repositorio y crear su archivo .env.
   #- path: ./dify/docker/docker-compose.yaml
@@ -14,22 +14,51 @@ services:
       API_ADMIN_PASSWORD: ${API_ADMIN_PASSWORD:?Set API_ADMIN_PASSWORD in .env}
       API_TOKEN_SECRET: ${API_TOKEN_SECRET:?Set API_TOKEN_SECRET in .env}
       API_TOKEN_TTL_SECONDS: ${API_TOKEN_TTL_SECONDS:-3600}
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-regression_results}
+      PGUSER: ${POSTGRES_USER:-regression}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-regression_dev_password}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3:8b}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
     volumes:
-      - regression_runs:/app/runs
+      # Los artefactos quedan en la carpeta local ./runs del proyecto.
+      # Esto facilita consultarlos desde Windows y evita conservar permisos
+      # antiguos dentro de un volumen Docker anónimo o nombrado.
+      - ./runs:/app/runs
     depends_on:
       ollama:
         condition: service_healthy
       ollama-model-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/v1/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-regression_results}
+      POSTGRES_USER: ${POSTGRES_USER:-regression}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-regression_dev_password}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init/001_regression_results.sql:/docker-entrypoint-initdb.d/001_regression_results.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   ollama:
@@ -119,7 +148,7 @@ services:
     restart: "no"
 
 volumes:
-  regression_runs:
+  postgres_data:
   n8n_data:
   flowise_data:
 
