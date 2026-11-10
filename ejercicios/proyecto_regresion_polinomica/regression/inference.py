@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from regression.polynomial_regressor import PolynomialRegressor
-
+from regression.eda_preprocesado import EdaPreprocesado
 MAX_ROWS = 100_000
 
 
@@ -33,6 +33,10 @@ def predict_csv(raw_model: bytes, raw_csv: bytes, separator=",", decimal=".") ->
             if row and len(row) != len(header):
                 raise ValueError("Todas las filas deben tener tantas columnas como la cabecera.")
         frame = pd.read_csv(io.StringIO(text), sep=separator, decimal=decimal, nrows=MAX_ROWS+1)
+        # 4. Limpiar nombres de columnas duplicados; convertir y a numérico; tratar NaN e infinito y exigir filas suficientes.
+        processor = EdaPreprocesado()
+        prepared, mappings = processor.transform(frame)
+        frame = prepared
     except (UnicodeError, pd.errors.ParserError, pd.errors.EmptyDataError, StopIteration, csv.Error) as exc:
         raise ValueError("No se pudo leer el CSV: usa UTF-8, cabecera y un separador válido.") from exc
     if frame.empty or len(frame) > MAX_ROWS:
