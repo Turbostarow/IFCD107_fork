@@ -505,7 +505,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
     @app.post("/api/v1/regresion/svm/csv")
     @require_token
     def fit_svm_csv():
-        """POST multipart: ajusta SVR; recibe CSV, target y opciones del modelo."""
+        """POST multipart:** ajusta SVR; recibe CSV, target y opciones del modelo."""
         return fit_tabular_regressor_csv("svm")
 
     @app.post("/api/v1/regresion/boosting/adaboost/csv")
