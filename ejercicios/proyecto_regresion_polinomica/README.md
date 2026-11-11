@@ -50,6 +50,77 @@ docker compose logs --tail 100 random-forest-ui
 docker compose stop random-forest-ui
 ```
 
+### Laboratorio de modelos tabulares y descripción de parámetros
+
+El menú lateral de [http://localhost:8501](http://localhost:8501) permite seleccionar Random Forest, Bayesian Ridge, RANSAC, Huber, Theil-Sen, árbol de decisión, Gradient Boosting, SVR, KNN, CatBoost, Gaussian Process, LightGBM, MLP, regresión cuantílica y XGBoost. Todos se ejecutan en `random-forest-ui`:
+
+```powershell
+docker compose up -d --build random-forest-ui
+```
+
+Las interfaces sklearn incluyen los parámetros de constructor de los estimadores instalados, obtenidos de `get_params(deep=False)`. CatBoost, LightGBM y XGBoost tienen controles principales y opciones adicionales mediante un objeto JSON con nombres oficiales, sin prefijo `model__`. Los controles ya no se limitan a la cuadrícula discreta de las casuísticas: permiten entradas numéricas, valores automáticos None, infinito donde corresponde, booleanos, opciones categóricas y restricciones monótonas por variable. La pestaña **Descripción**, inmediatamente después de **Datos**, explica cada parámetro en español, muestra su dominio y documentación original de la versión instalada, el valor seleccionado y el enlace a la referencia oficial. Los botones de ayuda de cada control también muestran el docstring de sklearn.
+
+Todos los modelos ofrecen CSV o datos de ejemplo, reentrenamiento al cambiar controles, R²/RMSE/MAE/Pearson/bias de prueba, gráficos de residuos, historial independiente y descarga del pipeline `.joblib`. Los objetivos inválidos se excluyen y las features ausentes se imputan con medianas aprendidas en entrenamiento. Las siete páginas RANSAC/Huber/Theil-Sen/árbol/Gradient Boosting/SVR/KNN también estandarizan sus predictores; Bayesian Ridge y Random Forest conservan sus escalas originales. El pipeline exportado incluye estas transformaciones. La semilla de partición es independiente del parámetro `random_state` del modelo.
+
+RANSAC permite configurar un estimador base y sus controles anidados; Gradient Boosting admite un estimador inicial, None o zero. Para parámetros de tipo función (callbacks RANSAC, loss personalizada, pesos y distancias de KNN, kernel de SVR o score OOB) se puede cargar un objeto invocable `.joblib` de confianza. Los estimadores base e iniciales también admiten carga joblib. Deben cumplir las firmas y condiciones documentadas por sklearn; los módulos de clases y funciones propias deben estar instalados tanto en el contenedor como en el entorno de inferencia. Cargar joblib puede ejecutar código: usa solo archivos de confianza.
+
+Con SVR `kernel=precomputed`, el laboratorio calcula un kernel lineal contra el entrenamiento; con KNN `metric=precomputed`, calcula distancias euclídeas. No se sube una matriz cuadrada: se siguen introduciendo las features originales. La transformación y las referencias de entrenamiento quedan en el pipeline exportado para predecir nuevas filas. Estos modos necesitan memoria proporcional al cuadrado de las filas de entrenamiento. La lista de distancias de KNN se adapta al motor y sus parámetros adicionales se introducen en `metric_params` como JSON. Las configuraciones incompatibles con el dataset muestran un error de sklearn y no resultados de un ajuste anterior.
+
+Cada cambio crea un estimador nuevo; `warm_start` no reutiliza ajustes entre configuraciones. `compute_score` de Bayesian Ridge muestra la evolución de la log-verosimilitud marginal. RANSAC muestra el consenso y Huber los atípicos de entrenamiento. Los avisos de convergencia aparecen en la interfaz. Los parámetros de `fit` como `sample_weight` y los atributos aprendidos no son parámetros de constructor y no forman parte de estos controles.
+
+### Redes convolucionales CNN 1D y CNN 2D
+
+El mismo laboratorio incorpora **CNN 1D** y **CNN 2D** para regresión de un objetivo, entrenadas con PyTorch 2.8 en CPU. Aparecen en el menú lateral. Tras incorporar el código, ejecuta `docker compose up -d --build random-forest-ui`; la primera construcción descarga PyTorch CPU. Para una instalación manual, instala `random_forest_ui/requirements.txt` y `random_forest_ui/requirements-cnn.txt`.
+
+**CNN 1D:** carga un CSV numérico y selecciona objetivo y posiciones de la señal. Cada fila es una muestra independiente y cada columna seleccionada es una posición ordenada de un canal. Incluye señales sintéticas. Para series temporales, prepara ventanas como filas; la interfaz no genera ventanas automáticamente. La opción de separación por orden conserva las últimas filas para validación y prueba. Si las ventanas se solapan o pertenecen al mismo sujeto/grupo, debes preparar datos y particiones que eviten compartir información entre conjuntos.
+
+**CNN 2D:** carga un ZIP con `labels.csv` en la raíz y las imágenes PNG/JPG/BMP. El CSV debe usar columnas `file,target`, con un objetivo numérico por imagen. La columna `file` contiene la ruta del archivo dentro del ZIP. Se permite elegir escala de grises o RGB y tamaño de imagen. Incluye imágenes sintéticas y un botón para descargar un ZIP de ejemplo. Se admiten entre 20 y 1.000 imágenes, hasta 100 MB descomprimidos y 16 millones de píxeles por imagen; los archivos se leen sin extraerlos al sistema de archivos.
+
+Las dos páginas permiten ajustar bloques, filtros, kernel, stride, dilation, activación, pooling, dropout, unidades densas, optimizador Adam/AdamW/SGD, tasa de aprendizaje, regularización, momentum, pérdida MSE/MAE/Huber, épocas, tamaño de lote y parada anticipada. Cada cambio reentrena; navegar entre pestañas o descargar con la misma configuración reutiliza el último resultado de la sesión. La pestaña **Descripción**, después de **Datos**, explica cada control. Se muestran las cinco métricas, residuos, curvas de entrenamiento/validación e historial descargable.
+
+La prueba se reserva antes de entrenar; el 20% del resto se usa como validación. Imputación, escalas de entrada y normalización del objetivo se aprenden solo en entrenamiento. Se restauran los pesos con mejor pérdida de validación. Las métricas de prueba se expresan en las unidades originales y nunca intervienen en la selección de pesos. La elección repetida de configuraciones mirando la prueba requiere una evaluación externa final.
+
+La descarga es un **`.pt` de PyTorch**, con `state_dict`, arquitectura, normalización y metadatos. Se reconstruye con `crear_red` y se predice con `predecir_cnn` de `random_forest_ui/cnn_modelo.py`. Este formato no se envía al endpoint `.joblib` de sklearn. Ejemplo:
+
+```python
+import torch
+from cnn_modelo import predecir_cnn
+
+paquete = torch.load("cnn1d.pt", map_location="cpu", weights_only=True)
+# Para CNN 1D: X tiene forma (muestras, 1, posiciones), en el orden de metadata.features.
+# Para CNN 2D: (muestras, canales, alto, ancho), con el tamaño/color guardado y píxeles en [0, 1].
+predicciones = predecir_cnn(paquete, X)
+```
+
+Referencia: [Conv1d](https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv1d.html), [Conv2d](https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) y [serialización de pesos PyTorch](https://docs.pytorch.org/docs/stable/notes/serialization.html).
+
+### Datos y superficie de cada modelo
+
+La pestaña **Datos y superficie del modelo** utiliza las variables originales y las predicciones guardadas sobre el conjunto de prueba. No ajusta K-means, PCA ni otro modelo adicional. Permite elegir dos predictores originales, colorear los puntos por observado, predicho o residuo y comparar los valores reales y las predicciones en 3D. Las métricas y los puntos proceden de las mismas filas reservadas, conservando su alineación. Si hay más de 1.500 filas de prueba, el gráfico muestra una muestra reproducible y las métricas siguen usando toda la prueba. Los predictores ausentes no se rellenan artificialmente en la nube: Plotly omite los puntos sin coordenadas de los ejes elegidos, aunque sus predicciones del pipeline sigan siendo válidas.
+
+En los nueve modelos sklearn y CNN 1D se puede ver un **corte condicional de la función del modelo**: se varían las dos variables elegidas en sus rangos de entrenamiento y las demás se fijan a las medianas del entrenamiento. Estas entradas sintéticas están identificadas y sus valores fijos se pueden consultar. El corte llama directamente a `predict` del modelo entrenado. Para Bayesian Ridge, Huber y Theil-Sen es un plano; para RANSAC depende del estimador base; los modelos no lineales pueden dar superficies curvas o escalonadas. Un solo predictor muestra una curva. Las predicciones reales de prueba usan todas las variables de cada observación y pueden no coincidir con el corte a medianas.
+
+Para CNN 2D se muestran los puntos reales de prueba con intensidad media y desviación de intensidad de cada imagen como ejes descriptivos, junto con sus objetivos y predicciones reales. Estos resúmenes no son activaciones internas ni entradas suficientes para reconstruir la predicción: por ello no se dibuja una superficie o plano sintético a partir de ellos. Los modelos actuales son regresores: no se muestran fronteras de clasificación ni grupos inferidos.
+
+### CatBoost, Gaussian Process, LightGBM, MLP, Quantile y XGBoost
+
+Estas seis páginas se añaden al laboratorio; Gradient Boosting conserva su página existente. La imagen instala CatBoost 1.2.10, LightGBM 4.7.0 y XGBoost CPU 3.2.0 con sus dependencias. Para una instalación manual añade `random_forest_ui/requirements-boosting.txt`. Todos los predictores de estas páginas son numéricos y el pipeline descargado incluye imputación y estandarización aprendidas con entrenamiento.
+
+- **Gaussian Process:** kernel seleccionable (predeterminado, RBF, Matérn, RationalQuadratic, DotProduct, RBF con ruido o kernel joblib), amplitud y escala, normalización del objetivo y optimización. Muestra el kernel ajustado y media ±1.96 desviaciones predictivas según el kernel, sin prometer cobertura de observaciones futuras. El ajuste tiene coste cúbico en el número de filas: empieza con datasets pequeños.
+- **MLP:** arquitectura con tamaños separados por comas, activación, Adam/SGD/L-BFGS, regularización y criterios de parada. Muestra la curva de pérdida cuando el optimizador la genera. Los avisos de convergencia quedan visibles.
+- **Quantile:** cuantil condicional, penalización L1 y solucionador HiGHS. Predice el cuantil solicitado, no necesariamente la media; R²/RMSE no son la pérdida optimizada por este modelo.
+- **CatBoost, LightGBM y XGBoost:** controles de árboles, tasa, regularización, muestreo, pérdida y semilla, más JSON adicional. Las bibliotecas validan las combinaciones y los requisitos del objetivo. Si se configura parada anticipada, se reserva una validación dentro de entrenamiento y nunca se utiliza la prueba como eval_set. La imputación y el escalado se aprenden en la porción usada para ajustar; las métricas de entrenamiento y las medianas del corte se calculan con esa misma porción.
+
+Cada página conserva R², RMSE, MAE, Pearson y bias, residuos, historial, Datos, Descripción con explicación por parámetro y referencia oficial, y las gráficas corregidas de puntos reales de prueba y cortes de su propia función de regresión. No se ajusta clustering para representar estos regresores. Los pipelines se descargan como `.joblib`; para predecir con ellos se requieren las mismas bibliotecas/versiones en el entorno de inferencia.
+
+### Curvas comunes de validación y aprendizaje
+
+Las 17 páginas incluyen **Curvas de validación y aprendizaje**. Se ejecutan con botones; permiten 2, 3 o 5 pliegues, de 2 a 8 candidatos JSON para un hiperparámetro y de 2 a 8 fracciones para variar el tamaño de entrenamiento. Se muestran RMSE de entrenamiento y validación interna, media entre pliegues y barras de una desviación estándar (no un intervalo de confianza). La tabla descargable conserva errores y avisos; solo se grafican puntos que completaron todos los pliegues. Cambiar la configuración oculta resultados antiguos hasta recalcular.
+
+El cálculo excluye la prueba principal antes de construir el evaluador. En tabulares usa el resto de filas; en CNN reúne entrenamiento y validación principales. Cada pliegue vuelve a aprender imputación, escalado, referencias de kernels precomputados y normalización CNN. Si se activa parada anticipada existe además validación dentro del subconjunto de ajuste; el eje de aprendizaje muestra la cantidad realmente utilizada para ajustar. Los subconjuntos por fracción son anidados. CNN 1D con separación por orden utiliza TimeSeriesSplit, sin gap adicional; los demás casos usan KFold con mezcla reproducible. No hay separación por grupos.
+
+Cada punto entrena desde cero y puede ser costoso con redes, Gaussian Process o muchos árboles. Los resultados no sustituyen al modelo principal. La curva de aprendizaje depende del número de muestras, no de las épocas; las pérdidas por época se mantienen en la pestaña del modelo. Elegir parámetros sobre validación requiere después evaluar en prueba independiente.
+
 ### PostgreSQL: resultados de las casuísticas
 
 Compose levanta un servicio `postgres` con la base `regression_results` y conserva sus datos en el volumen `postgres_data`. Al crear el volumen por primera vez, PostgreSQL ejecuta `database/init/001_regression_results.sql` para crear estas tablas:
