@@ -99,6 +99,29 @@ def register_run(run_id: str, reference: str, algorithm: str,
             )
     return True
 
+def get_run_model_path(run_id: str, root: str = "") -> str | None:
+    """Devuelve la ruta completa del fichero .joblib asociado a una ejecución, o None si no existe."""
+    if not is_configured():
+        return None
+    ensure_schema()
+    file_type='model'
+    with _managed_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                 """SELECT file_path 
+                   FROM regression_run_files 
+                   WHERE run_id = %s AND file_type = 'model'""",
+                (run_id,),
+            )
+            row = cursor.fetchone()
+    print('get_run_model_path')
+    print(row)
+    if row is None:
+        return None
+    print('get_run_model_path')
+    print(os.path.join(root, row[0]) if root else row[0])
+    return os.path.join(root, row[0]) if root else row[0]
+
 
 def mark_run_failed(run_id: str, error: str) -> bool:
     """Marca como fallida una ejecución que no terminó correctamente."""

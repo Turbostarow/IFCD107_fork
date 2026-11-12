@@ -42,6 +42,7 @@ import secrets
 from functools import wraps
 from datetime import datetime, timezone
 from pathlib import Path
+from regression.results_db import get_run_model_path
 
 import numpy as np
 from flask import Flask, g, jsonify, request
@@ -237,21 +238,43 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
     @app.post("/api/v1/regresion/predecir/csv")
     @require_token
     def predict_model_csv():
-        """Recibe un .joblib de confianza y un CSV; devuelve una predicción por fila."""
+        """Recibe runid (o un .joblib de confianza) y un CSV; predice por fila."""
         # Los bosques serializados pueden superar el límite general de 5 MB.
         # Flask 3.1 admite ampliar el límite solo para esta petición autenticada.
         request.max_content_length = 56 * 1024 * 1024
+        
+        run_id = request.form.get("runid", "").strip()
         uploaded_model = request.files.get("model")
         uploaded_csv = request.files.get("file")
-        if uploaded_model is None or not uploaded_model.filename:
-            return jsonify(error="Falta el modelo .joblib en el campo multipart 'model'."), 400
         if uploaded_csv is None or not uploaded_csv.filename:
             return jsonify(error="Falta el CSV de features en el campo multipart 'file'."), 400
-        if not uploaded_model.filename.lower().endswith(".joblib"):
-            return jsonify(error="El archivo 'model' debe tener extensión .joblib."), 400
         if not uploaded_csv.filename.lower().endswith(".csv"):
             return jsonify(error="El archivo 'file' debe tener extensión .csv."), 400
-        raw_model = uploaded_model.read(50 * 1024 * 1024 + 1)
+
+        if run_id:
+            # La base de datos guarda rutas relativas a output_root.
+            stored_path = get_run_model_path(run_id, str(output_root))
+            if not stored_path:
+                return jsonify(error="No se encontró un modelo para el runid indicado."), 404
+            model_path = Path(stored_path).resolve()
+            if not model_path.is_relative_to(output_root.resolve()):
+                return jsonify(error="La ruta del modelo está fuera de la carpeta de ejecuciones."), 400
+            if model_path.suffix.lower() != ".joblib":
+                return jsonify(error="El modelo guardado debe tener extensión .joblib."), 400
+            try:
+                with model_path.open("rb") as model_file:
+                    raw_model = model_file.read(50 * 1024 * 1024 + 1)
+            except FileNotFoundError:
+                return jsonify(error="No se encontró el archivo del modelo guardado."), 404
+            except OSError:
+                app.logger.exception("No se pudo leer el modelo guardado para runid=%s", run_id)
+                return jsonify(error="No se pudo leer el archivo del modelo guardado."), 500
+        else:
+            if uploaded_model is None or not uploaded_model.filename:
+                return jsonify(error="Indica 'runid' o adjunta un modelo .joblib en el campo multipart 'model'."), 400
+            if not uploaded_model.filename.lower().endswith(".joblib"):
+                return jsonify(error="El archivo 'model' debe tener extensión .joblib."), 400
+            raw_model = uploaded_model.read(50 * 1024 * 1024 + 1)
         raw_csv = uploaded_csv.read(4 * 1024 * 1024 + 1)
         if len(raw_model) > 50 * 1024 * 1024 or len(raw_csv) > 4 * 1024 * 1024:
             return jsonify(error="Límites: modelo de 50 MB y CSV de 4 MB."), 413
