@@ -37,6 +37,7 @@ from regression.train_regresion_lineal_simple_ejercicio_casuisticas import train
 from regression.train_regresion_lineal_multiple_ejercicio_casuisticas import train_algorithm_frame_lineal_multiple_regression
 from regression.train_regresion_polinomial_ejercicio_casuisticas import train_algorithm_frame_polynomial_regression
 from regression.train_regresion_cuantilica_ejercicio_casuisticas import train_algorithm_frame_quantile_regression
+from regression.train_random_forest_ejercicio_casuisticas import train_algorithm_frame_random_forest_regression
 from regression.results_db import mark_run_failed, register_run
 
 
@@ -207,8 +208,13 @@ def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorit
                 frame, base / "resultados", run_id,
                 cv=cv, n_iter=n_iter, random_state=random_state,
             )
+        elif algorithm == "random_forest":
+            result = train_algorithm_frame_random_forest_regression(
+                frame, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
         else:
-            raise ValueError(f"Algoritmo no reconocido: {algorithm}.")
+            raise ValueError(f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.")
 
         artifact_paths = {
             key: str(Path(value).relative_to(output_root))
