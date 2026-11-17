@@ -40,6 +40,14 @@ SCHEMA_STATEMENTS = (
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (run_id, search_name)
     )""",
+    """CREATE TABLE IF NOT EXISTS regression_run_logs (
+            id BIGSERIAL PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES regression_runs(run_id) ON DELETE CASCADE,
+            log_type TEXT NOT NULL,
+            file_path TEXT ,
+            logtext TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""",
 )
 
 
@@ -96,6 +104,28 @@ def register_run(run_id: str, reference: str, algorithm: str,
                    VALUES (%s, %s, %s, %s, 'running')
                    ON CONFLICT (run_id) DO NOTHING""",
                 (run_id, reference, algorithm, model_name),
+            )
+            connection.commit()
+            cursor.close()
+        
+    return True
+
+def register_log(run_id: str, log_type: str, 
+                 logtext: str, file_path: str = "") -> bool:
+    """Guarda run_id TEXT NOT NULL REFERENCES regression_runs(run_id) ON DELETE CASCADE,
+                log_type TEXT NOT NULL,
+                file_path TEXT ,
+                logtext TEXT NOT NULL,"""
+    if not is_configured():
+        return False
+    with _managed_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO regression_run_logs
+                   (run_id, log_type, file_path, logtext)
+                   VALUES (%s, %s, %s, %s)
+                """,
+                (run_id, log_type,file_path , logtext),
             )
     return True
 

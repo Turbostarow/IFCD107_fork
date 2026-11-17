@@ -38,7 +38,7 @@ from regression.train_regresion_lineal_multiple_ejercicio_casuisticas import tra
 from regression.train_regresion_polinomial_ejercicio_casuisticas import train_algorithm_frame_polynomial_regression
 from regression.train_regresion_cuantilica_ejercicio_casuisticas import train_algorithm_frame_quantile_regression
 from regression.train_random_forest_ejercicio_casuisticas import train_algorithm_frame_random_forest_regression
-from regression.results_db import mark_run_failed, register_run
+from regression.results_db import mark_run_failed, register_run,register_log
 
 
 def _mark_casuistica_failed(run_id, error):
@@ -100,7 +100,7 @@ def run_primitiva_model(output_root, reference, raw_csv, model_name, options):
 
 
 def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
-                              cv=5, n_iter=20, random_state=42):
+                              cv=5, n_iter=20, random_state=42, ejercicio=0):
     """Ejecuta una casuística de regresión elegida por slug validado en Flask."""
     import io
     import pandas as pd
@@ -124,11 +124,51 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
         register_run(run_id, reference, algorithm, ALGORITHM_LABELS[algorithm])
         frame = pd.read_csv(io.BytesIO(raw_csv), encoding="utf-8-sig")
         if len(frame) > MAX_POINTS:
+            register_log(run_id,'Error',
+                    f"El CSV supera el límite de {MAX_POINTS} filas.",
+                    "")
             raise ValueError(f"El CSV supera el límite de {MAX_POINTS} filas.")
-        result = train_algorithm_frame(
-            frame, algorithm, base / "resultados", run_id,
-            cv=cv, n_iter=n_iter, random_state=random_state,
-        )
+        # Si ejercicio es igual a 1 lo busco por metodo, sino automática
+        
+        result = {}
+        if ejercicio == 0:
+            result = train_algorithm_frame(
+                frame, algorithm, base / "resultados", run_id,
+                cv=cv, n_iter=n_iter, random_state=random_state,
+            )
+        else:
+            if algorithm == "linear_simple":
+                result = train_algorithm_frame_lineal_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+            elif algorithm == "linear_multiple":
+                result = train_algorithm_frame_lineal_multiple_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+            elif algorithm == "polynomial":
+                result = train_algorithm_frame_polynomial_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+            elif algorithm == "quantile":
+                result = train_algorithm_frame_quantile_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+            elif algorithm == "random_forest":
+                result = train_algorithm_frame_random_forest_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+            else:
+                register_log(run_id,'Error',
+                             f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.",
+                             "")
+                raise ValueError(f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.")
+        
+        
         artifact_paths = {
             key: str(Path(value).relative_to(output_root))
             for key, value in result["artifacts"].items()
@@ -145,6 +185,9 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
             encoding="utf-8",
         )
         persist_casuistica_results(run_id, result)
+        register_log(run_id,'Info',
+                f"Algoritmo entrenado: {algorithm}.",
+                "")
         return jsonify(result), 200
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
         _mark_casuistica_failed(run_id, exc)
@@ -158,81 +201,6 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
         return jsonify(error="Error interno durante el entrenamiento de la casuística.",
                        reference=reference, run_id=run_id), 500
 
-def run_regression_casuistica_ejercicio(output_root, reference, raw_csv, algorithm,
-                              cv=5, n_iter=20, random_state=42):
-    """Ejecuta una casuística de regresión elegida por slug validado en Flask."""
-    import io
-    import pandas as pd
-    from regression.casuisticas import ALGORITHM_LABELS, persist_casuistica_results
-
-    if algorithm not in ALGORITHM_LABELS:
-        return jsonify(error="Algoritmo de casuística no reconocido."), 404
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
-    output_root = Path(output_root)
-    base = output_root / reference / "casuisticas" / algorithm
-    input_dir = base / "csv_entrada"
-    log_dir = base / "logs_salida"
-    input_dir.mkdir(parents=True, exist_ok=True)
-    log_dir.mkdir(parents=True, exist_ok=True)
-    input_path = input_dir / f"{run_id}.csv"
-    log_path = log_dir / f"{run_id}.log"
-    input_path.write_bytes(raw_csv)
-    # Aqui empiezan los cambios del ejercicio.
-    # por cada nombre de algoritmo crear un método en
-    # el py correspondiente y llamarlo
-    try:
-        register_run(run_id, reference, algorithm, ALGORITHM_LABELS[algorithm])
-        frame = pd.read_csv(io.BytesIO(raw_csv), encoding="utf-8-sig")
-        if len(frame) > MAX_POINTS:
-            raise ValueError(f"El CSV supera el límite de {MAX_POINTS} filas.")
-        # Como solo hay un algoritmo, llamo al entrenador correspondiente.
-        # "linear_simple" o "linear_multiple"
-        result = {}
-        if algorithm == "linear_simple":
-            result = train_algorithm_frame_lineal_regression(
-                frame, base / "resultados", run_id,
-                cv=cv, n_iter=n_iter, random_state=random_state,
-            )
-        elif algorithm == "linear_multiple":
-            result = train_algorithm_frame_lineal_multiple_regression(
-                frame, base / "resultados", run_id,
-                cv=cv, n_iter=n_iter, random_state=random_state,
-            )
-        elif algorithm == "polynomial":
-            result = train_algorithm_frame_polynomial_regression(
-                frame, base / "resultados", run_id,
-                cv=cv, n_iter=n_iter, random_state=random_state,
-            )
-        elif algorithm == "quantile":
-            result = train_algorithm_frame_quantile_regression(
-                frame, base / "resultados", run_id,
-                cv=cv, n_iter=n_iter, random_state=random_state,
-            )
-        elif algorithm == "random_forest":
-            result = train_algorithm_frame_random_forest_regression(
-                frame, base / "resultados", run_id,
-                cv=cv, n_iter=n_iter, random_state=random_state,
-            )
-        else:
-            raise ValueError(f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.")
-
-        artifact_paths = {
-            key: str(Path(value).relative_to(output_root))
-            for key, value in result["artifacts"].items()
-        }
-        artifact_paths.update({
-            "input_csv": str(input_path.relative_to(output_root)),
-            "log": str(log_path.relative_to(output_root)),
-        })
-        result.update({"reference": reference, "run_id": run_id, "artifacts": artifact_paths})
-        log_path.write_text(
-            f"algorithm={algorithm}\nrun_id={run_id}\ncv={cv}\nn_iter={n_iter}\n"
-            f"winner={result['winner']}\nbest_parameters={json.dumps(result['best_parameters'], default=str)}\n"
-            f"metrics={json.dumps(result['metrics'])}\n",
-            encoding="utf-8",
-        )
-        persist_casuistica_results(run_id, result)
-        return jsonify(result), 200
     # 17. Capturar errores por casuística y continuar con las demás; no ocultar traceback en el log ni revelar datos sensibles en la respuesta.
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
         _mark_casuistica_failed(run_id, exc)
