@@ -105,6 +105,9 @@ def register_run(run_id: str, reference: str, algorithm: str,
                    ON CONFLICT (run_id) DO NOTHING""",
                 (run_id, reference, algorithm, model_name),
             )
+            connection.commit()
+            cursor.close()
+        
     return True
 
 def register_log(run_id: str, log_type: str, 
@@ -121,7 +124,7 @@ def register_log(run_id: str, log_type: str,
                 """INSERT INTO regression_run_logs
                    (run_id, log_type, file_path, logtext)
                    VALUES (%s, %s, %s, %s)
-                   ON CONFLICT (run_id) DO NOTHING""",
+                """,
                 (run_id, log_type,file_path , logtext),
             )
     return True
