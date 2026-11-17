@@ -55,11 +55,12 @@ from api_functions import (
     run_random_forest, run_polynomial_search, run_knn_cross_validation,
     run_tabular_regressor, regression_model_options, validate_reference, parse_integer,
     parse_search_options, run_eda_preprocesado, run_primitiva_analysis, run_primitiva_model,
-    validate_reference_v1, run_regression_casuistica,run_regression_casuistica_ejercicio,
+    validate_reference_v1, run_regression_casuistica,
 )
 from regression.casuisticas import ALGORITHM_LABELS
 from regression.parameter_search import PARAMETER_CATALOG
 from regression.inference import predict_csv
+from regression.results_db import register_log
 
 
 # Carga variables locales antes de inicializar el diccionario de usuarios y la
@@ -241,16 +242,21 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         """Recibe runid (o un .joblib de confianza) y un CSV; predice por fila."""
         # Los bosques serializados pueden superar el límite general de 5 MB.
         # Flask 3.1 admite ampliar el límite solo para esta petición autenticada.
+        
         request.max_content_length = 56 * 1024 * 1024
         
         run_id = request.form.get("runid", "").strip()
         uploaded_model = request.files.get("model")
         uploaded_csv = request.files.get("file")
+
         if uploaded_csv is None or not uploaded_csv.filename:
             return jsonify(error="Falta el CSV de features en el campo multipart 'file'."), 400
         if not uploaded_csv.filename.lower().endswith(".csv"):
             return jsonify(error="El archivo 'file' debe tener extensión .csv."), 400
-
+        # log para inicio de prediccion
+        register_log(run_id,'Info',
+            f"Obteniendo valores para el archivo  {uploaded_csv.filename}.",
+            uploaded_csv.filename)
         if run_id:
             # La base de datos guarda rutas relativas a output_root.
             stored_path = get_run_model_path(run_id, str(output_root))
@@ -286,6 +292,10 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
                                  decimal=request.form.get("decimal", "."))
         except ValueError as exc:
             return jsonify(error=str(exc)), 422
+        # log para inicio de prediccion
+        register_log(run_id,'Info',
+            f"Obtenidos  valores para el archivo  {uploaded_csv.filename}.",
+            uploaded_csv.filename)
         return jsonify(result), 200
 
     @app.post("/api/v1/regresion/polinomica")
@@ -608,7 +618,7 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
         return run_regression_casuistica(
-            output_root, reference, raw_csv, algorithm, cv, n_iter, random_state
+            output_root, reference, raw_csv, algorithm, cv, n_iter, random_state,0
         )
     @app.post("/api/v1/regresion/casuisticas/ejercicio/<algorithm>/csv")
     @require_token
@@ -633,8 +643,8 @@ def create_app(output_root: Path = OUTPUT_ROOT, users: dict | None = None, token
             random_state = parse_integer("random_state", 42, 0, 2**32 - 1, request.form)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
-        return run_regression_casuistica_ejercicio(
-            output_root, reference, raw_csv, algorithm, cv, n_iter, random_state
+        return run_regression_casuistica(
+            output_root, reference, raw_csv, algorithm, cv, n_iter, random_state,1
         )
     @app.post("/api/v1/primitiva/analizar/csv")
     @require_token
