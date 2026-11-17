@@ -1,0 +1,55 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/regresion/boosting/adaboost/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: adaboost_regresion_demo
+    - type: text
+      key: target
+      value: y
+    - type: text
+      key: n_estimators
+      value: "100"
+    - type: text
+      key: max_depth
+      value: "2"
+    - type: text
+      key: learning_rate
+      value: "0.05"
+    - type: text
+      key: loss
+      value: linear
+    - type: text
+      key: test_size
+      value: "0.2"
+    - type: text
+      key: random_state
+      value: "42"
+    - type: file
+      key: file
+      src:
+        - ../ejemplos/datos_ejemplo_complejo.csv
+    - type: text
+      key: search
+      value: "false"
+      description: Usa el catálogo de GET /api/v1/regresion/parametros cuando search=true.
+    - type: text
+      key: n_iter
+      value: "10"
+      description: Usa el catálogo de GET /api/v1/regresion/parametros cuando search=true.
+    - type: text
+      key: search_cv
+      value: "5"
+      description: Usa el catálogo de GET /api/v1/regresion/parametros cuando search=true.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("AdaBoostRegressor - cargar CSV responde correctamente", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) { pm.collectionVariables.set("last_run_id", pm.response.json().run_id); }
+    language: text/javascript
+order: 17000

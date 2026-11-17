@@ -1,0 +1,37 @@
+$kind: http-request
+description: "Ejecuta Obtener token. Selecciona model (.joblib) y file (CSV de features sin necesidad de objetivo). Usa solo modelos de confianza: joblib.load puede ejecutar código al cargar. Reutiliza el preprocesamiento guardado, sin entrenar. Devuelve predictions con row (1 = primera fila de datos) y prediction. Los modelos con nombres seleccionan y ordenan las columnas automáticamente; informa las columnas extra ignoradas. Los modelos entrenados con arrays requieren el orden original. El polinomio propio requiere x. Máximo 100000 filas, CSV 4 MB, modelo 50 MB. 400: formulario inválido; 401: sin token; 413: tamaño; 422: modelo/CSV incompatible. Si usas el CSV de ejemplo, selecciona un modelo polinómico compatible."
+url: "{{baseUrl}}/api/v1/regresion/predecir/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: file
+      key: model
+      src: []
+      description: Selecciona un .joblib de confianza guardado con joblib.dump (máximo 50 MB).
+    - type: file
+      key: file
+      src:
+        - ejemplos/features_prediccion.csv
+      description: CSV UTF-8 con las features originales. El ejemplo x sirve para el modelo polinómico.
+    - type: text
+      key: separator
+      value: ","
+      description: "Separador del CSV: coma, punto y coma o tabulador."
+    - type: text
+      key: decimal
+      value: .
+      description: "Separador decimal: punto o coma."
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Predicción correcta", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) {
+        const result = pm.response.json();
+        pm.test("Una predicción por fila", function () { pm.expect(result.predictions.length).to.eql(result.n_rows); });
+        pm.test("Predicciones numéricas", function () { result.predictions.forEach(p => { pm.expect(p.prediction).to.be.a("number"); }); });
+      }
+    language: text/javascript
+order: 7000

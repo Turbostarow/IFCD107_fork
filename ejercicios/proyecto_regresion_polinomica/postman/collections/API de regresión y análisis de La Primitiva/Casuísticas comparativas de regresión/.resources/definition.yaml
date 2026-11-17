@@ -1,0 +1,3 @@
+$kind: collection
+description: Una solicitud por algoritmo. Cada ejecución compara GridSearchCV y RandomizedSearchCV con validación cruzada, selecciona por RMSE y genera PDF con predicciones frente a valores reales. Ejecuta primero Obtener token.
+order: 3000

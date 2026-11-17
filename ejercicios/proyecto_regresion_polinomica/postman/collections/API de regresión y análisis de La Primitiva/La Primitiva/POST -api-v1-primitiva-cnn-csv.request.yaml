@@ -1,0 +1,41 @@
+$kind: http-request
+name: POST /api/v1/primitiva/cnn/csv
+url: "{{baseUrl}}/api/v1/primitiva/cnn/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: primitiva_cnn_demo
+    - type: text
+      key: window
+      value: "10"
+      description: Número de sorteos anteriores usados como ventana (3-30).
+    - type: text
+      key: random_state
+      value: "42"
+      description: Semilla reproducible.
+    - type: text
+      key: epochs
+      value: "80"
+      description: Épocas de entrenamiento (10-300).
+    - type: file
+      key: file
+      src:
+        - ../primitiva/datos_ejemplo_sinteticos.csv
+      description: CSV sintético de demostración; sustituible por histórico real.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("CNN 1D implementada con NumPy: HTTP 200", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) {
+        var result = pm.response.json();
+        pm.test("Seis números en la clasificación", function () { pm.expect(result.suggested_numbers).to.have.lengthOf(6); });
+        pm.test("Incluye métricas y referencia aleatoria", function () { pm.expect(result.metrics.random_expected_hits_at_6).to.be.a("number"); });
+        pm.collectionVariables.set("last_primitiva_cnn_result", JSON.stringify(result));
+      }
+    language: text/javascript
+order: 4000

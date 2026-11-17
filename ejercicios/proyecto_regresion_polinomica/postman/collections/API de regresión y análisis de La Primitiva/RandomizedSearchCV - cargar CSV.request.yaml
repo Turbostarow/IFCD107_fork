@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/regresion/polinomica/randomizedsearch"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: polynomial_random_search_csv_demo
+    - type: text
+      key: n_iter
+      value: "20"
+    - type: text
+      key: cv
+      value: "5"
+    - type: text
+      key: random_state
+      value: "42"
+    - type: file
+      key: file
+      src:
+        - ../ejemplos/datos_ejemplo_xy.csv
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("RandomizedSearchCV con CSV responde correctamente", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) { pm.collectionVariables.set("last_run_id", pm.response.json().run_id); }
+    language: text/javascript
+order: 12000

@@ -1,0 +1,49 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/regresion/casuisticas/random_forest/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: casuistica_random_forest
+      disabled: false
+    - type: text
+      key: cv
+      value: "5"
+      description: Número de pliegues de validación cruzada.
+      disabled: false
+    - type: text
+      key: n_iter
+      value: "20"
+      description: Candidatos de RandomizedSearchCV.
+      disabled: false
+    - type: text
+      key: random_state
+      value: "42"
+      disabled: false
+    - type: file
+      key: file
+      src:
+        - /C:/Users/Alumno/Desktop/IFCD0109/fork_profe/ejercicios/proyecto_regresion_polinomica/ejemplos/01_referencia_limpia.csv
+      disabled: false
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Random Forest Regressor: entrenamiento correcto", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) {
+        var result = pm.response.json();
+        pm.test("Incluye mejor búsqueda e hiperparámetros", function () {
+          pm.expect(["GridSearchCV", "RandomizedSearchCV"]).to.include(result.winner);
+          pm.expect(result.best_parameters).to.be.an("object");
+        });
+        pm.test("Incluye métricas y PDF", function () {
+          pm.expect(result.metrics.rmse).to.be.a("number");
+          pm.expect(result.artifacts.report_pdf).to.be.a("string");
+        });
+        pm.collectionVariables.set("last_casuistica_random_forest", JSON.stringify(result));
+      }
+    language: text/javascript
+order: 13000

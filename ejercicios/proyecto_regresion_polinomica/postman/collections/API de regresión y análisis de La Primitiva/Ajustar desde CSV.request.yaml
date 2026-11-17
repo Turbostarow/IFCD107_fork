@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/regresion/polinomica/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: "{{reference}}"
+    - type: text
+      key: degree
+      value: "2"
+    - type: file
+      key: file
+      src:
+        - ../ejemplos/datos_ejemplo_xy.csv
+order: 9000

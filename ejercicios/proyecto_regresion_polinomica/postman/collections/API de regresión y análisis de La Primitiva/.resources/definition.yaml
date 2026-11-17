@@ -1,0 +1,15 @@
+$kind: collection
+description: Health, autenticación Bearer, regresión polinómica, KNN, Random Forest, SVR, AdaBoostRegressor y GradientBoostingRegressor. Ejecuta Obtener token antes de las solicitudes de entrenamiento. Incluye ejecución controlada de los analizadores históricos de La Primitiva con CSV. Incluye una carpeta de casuísticas para comparar GridSearchCV y RandomizedSearchCV en 21 algoritmos de regresión. Incluye inferencia desde un modelo .joblib de confianza y un CSV de features, sin reentrenamiento.
+variables:
+  baseUrl: http://127.0.0.1:5000
+  reference: terrazas_madrid_demo
+  username: admin
+  password: ""
+  token: ""
+  last_eda_preprocessed_csv: ""
+  last_eda_report_pdf: ""
+  last_svm_metrics: ""
+  last_primitiva_run_id: ""
+  last_primitiva_report: ""
+  last_run_id: ""
+  last_casuistica_random_forest: ""

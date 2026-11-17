@@ -1,0 +1,42 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/eda/preprocesado/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: eda_06_sesgo_y_heterocedasticidad
+    - type: text
+      key: min_correlation
+      value: "0"
+      description: Correlación absoluta mínima con y para conservar una característica numérica (0-1).
+    - type: text
+      key: max_correlation
+      value: "1"
+      description: Correlación absoluta máxima con y para conservar una característica numérica (0-1).
+    - type: file
+      key: file
+      src:
+        - ../proyecto_eda_preprocesado_latex/datos/06_sesgo_y_heterocedasticidad.csv
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("EDA y SVR completados", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) {
+        var result = pm.response.json();
+        pm.test("La respuesta incluye métricas y artefactos", function () {
+          pm.expect(result.metrics).to.be.an("object");
+          pm.expect(result.artifacts.eda_report_pdf).to.be.a("string");
+          pm.expect(result.artifacts.preprocessed_csv).to.be.a("string");
+          pm.expect(result.artifacts.trained_model_pkt).to.be.a("string");
+        });
+        pm.collectionVariables.set("last_run_id", result.run_id);
+        pm.collectionVariables.set("last_eda_report_pdf", result.artifacts.eda_report_pdf);
+        pm.collectionVariables.set("last_eda_preprocessed_csv", result.artifacts.preprocessed_csv);
+        pm.collectionVariables.set("last_svm_metrics", JSON.stringify(result.metrics));
+      }
+    language: text/javascript
+order: 6000

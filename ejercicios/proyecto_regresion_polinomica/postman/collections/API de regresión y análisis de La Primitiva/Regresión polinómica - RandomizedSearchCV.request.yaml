@@ -1,0 +1,45 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/regresion/polinomica/randomizedsearch"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "reference": "polynomial_random_search_demo",
+      "n_iter": 20,
+      "cv": 5,
+      "random_state": 42,
+      "w": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      "data": [
+        {"x": -9, "y": 82.4},
+        {"x": -8, "y": 65.1},
+        {"x": -7, "y": 49.3},
+        {"x": -6, "y": 36.2},
+        {"x": -5, "y": 25.4},
+        {"x": -4, "y": 16.8},
+        {"x": -3, "y": 10.2},
+        {"x": -2, "y": 5.7},
+        {"x": -1, "y": 2.9},
+        {"x": 0, "y": 1.2},
+        {"x": 1, "y": 1.8},
+        {"x": 2, "y": 5.9},
+        {"x": 3, "y": 10.8},
+        {"x": 4, "y": 17.3},
+        {"x": 5, "y": 26.1},
+        {"x": 6, "y": 36.5},
+        {"x": 7, "y": 49.7},
+        {"x": 8, "y": 65.4},
+        {"x": 9, "y": 82.9},
+        {"x": 10, "y": 102.6}
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("RandomizedSearchCV responde correctamente", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) { pm.collectionVariables.set("last_run_id", pm.response.json().run_id); }
+    language: text/javascript
+order: 11000

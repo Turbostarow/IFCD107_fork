@@ -1,0 +1,3 @@
+$kind: collection
+description: "Primero ejecuta «Obtener token». Después usa una de estas llamadas POST a /api/v1/primitiva/analizar/csv; cada llamada selecciona una versión del script. Incluye también dos modelos didácticos de clasificación multietiqueta: KNN y CNN 1D; no predicen ni mejoran las probabilidades reales."
+order: 2000

@@ -1,0 +1,34 @@
+$kind: http-request
+name: POST /api/v1/primitiva/analizar/csv (v01)
+url: "{{baseUrl}}/api/v1/primitiva/analizar/csv"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: formdata
+  content:
+    - type: text
+      key: reference
+      value: primitiva_historico_demo
+      description: Identificador que forma parte de la ruta de salida bajo runs/<reference>/primitiva/.
+    - type: text
+      key: version
+      value: v01
+      description: Versión fija del script seleccionada por esta llamada.
+    - type: file
+      key: file
+      src:
+        - ../primitiva/datos_ejemplo_sinteticos.csv
+      description: CSV sintético de ejemplo incluido en primitiva/. Puedes reemplazarlo desde Postman.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Análisis de La Primitiva completado", function () { pm.response.to.have.status(200); });
+      if (pm.response.code === 200) {
+        var result = pm.response.json();
+        pm.test("La respuesta incluye el informe PDF", function () { pm.expect(result.artifacts.report_pdf).to.be.a("string"); });
+        pm.collectionVariables.set("last_primitiva_run_id", result.run_id);
+        pm.collectionVariables.set("last_primitiva_report", result.artifacts.report_pdf);
+      }
+    language: text/javascript
+order: 2000

@@ -1,0 +1,3 @@
+$kind: collection
+description: "Cada solicitud ejecuta de extremo a extremo un caso: hace EDA y preprocesado, genera el PDF y luego entrena SVR con una partición de prueba. No es necesario adjuntar después otro archivo al endpoint SVR."
+order: 1000

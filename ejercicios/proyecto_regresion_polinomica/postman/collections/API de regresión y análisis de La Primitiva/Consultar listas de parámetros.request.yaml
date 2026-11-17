@@ -1,0 +1,5 @@
+$kind: http-request
+description: Devuelve cada parámetro con sus opciones en la propiedad items. Para activar una búsqueda en los endpoints de entrenamiento, enviar search=true, n_iter y search_cv.
+url: "{{baseUrl}}/api/v1/regresion/parametros"
+method: GET
+order: 5000
