@@ -136,6 +136,8 @@ def mark_run_failed(run_id: str, error: str) -> bool:
                    WHERE run_id = %s""",
                 (str(error)[:2000], run_id),
             )
+            cursor.close()
+        connection.commit()
     return True
 
 
