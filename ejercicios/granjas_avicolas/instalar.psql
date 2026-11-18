@@ -1,0 +1,7 @@
+-- Ejecutar conectado a postgres con un usuario con CREATEDB.
+\set ON_ERROR_STOP on
+\encoding UTF8
+CREATE DATABASE granjas_avicolas TEMPLATE template0 ENCODING 'UTF8';
+\connect granjas_avicolas
+\ir crear_cargar.sql
+\ir verificar.sql
