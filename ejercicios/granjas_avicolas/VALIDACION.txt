@@ -1,0 +1,4 @@
+Validación realizada: revisión estructural de 10 CREATE TABLE y recálculo independiente con Python de la generación determinista.
+Producción: 247408 huevos; rotos: 2295; bajas: 36; temperaturas ausentes: 27; ventas: 90.
+Verificadas capacidad, continuidad de censo, saldo diario no negativo de alimento y producción suficiente para cada venta de la muestra.
+No se ha ejecutado contra PostgreSQL: el entorno no dispone de servidor accesible. El instalador incluye verificar.sql para comprobar la carga real.
