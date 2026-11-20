@@ -39,8 +39,50 @@ from avicola.granjas g
 join avicola.naves n ON n.granja_id = g.granja_id
 join avicola.lotes l on l.nave_id = n.nave_id
 join avicola.produccion_diaria p ON p.lote_id = l.lote_id
-group by g.codigo,nombre;
+group by g.codigo,nombre
+having sum(p.huevos_totales) -  sum(p.huevos_rotos) > 27000;
+
+-- 3.3 actualizar registro de la tabla avicola.produccion_diaria 
+-- para clave production_id 72 poniendo a temperatura a 19 grados
+
+-- 3.4 Calcular la temperatura media  por granja y nave
+select g.codigo,nombre , n.codigo,
+avg(p.temperatura_c)
+from avicola.granjas g
+join avicola.naves n ON n.granja_id = g.granja_id
+join avicola.lotes l on l.nave_id = n.nave_id
+join avicola.produccion_diaria p ON p.lote_id = l.lote_id
+group by g.codigo,nombre,n.codigo
+-- temperatura media por día para todas las naves 
+select g.codigo,nombre , n.codigo
+avg(p.temperatura_c)
+from avicola.granjas g
+join avicola.naves n ON n.granja_id = g.granja_id
+join avicola.lotes l on l.nave_id = n.nave_id
+join avicola.produccion_diaria p ON p.lote_id = l.lote_id
+group by g.codigo,nombre,n.codigo
+-- temperatura media por día para todas las semana 
+select g.codigo,nombre,p.fecha,
+avg(p.temperatura_c)
+from avicola.granjas g
+join avicola.naves n ON n.granja_id = g.granja_id
+join avicola.lotes l on l.nave_id = n.nave_id
+join avicola.produccion_diaria p ON p.lote_id = l.lote_id
+where p.temperatura_c is not null
+group by g.codigo,nombre,p.fecha
+
+
+select g.codigo,nombre,EXTRACT(DOW FROM p.fecha),
+round(avg(p.temperatura_c),3)
+from avicola.granjas g
+join avicola.naves n ON n.granja_id = g.granja_id
+join avicola.lotes l on l.nave_id = n.nave_id
+join avicola.produccion_diaria p ON p.lote_id = l.lote_id
+where p.temperatura_c is not null
+group by g.codigo,nombre,EXTRACT(DOW FROM p.fecha)
+
 -- 4. Calcular puesta por cada 100 aves-dia, ponderando por censo.
+
 -- 5. Calcular kg consumidos por docena comercializable por lote.
 -- 6. Calcular gasto de compras de pienso por proveedor.
 -- 7. Encontrar clientes sin ventas y piensos sin consumo (LEFT JOIN).
