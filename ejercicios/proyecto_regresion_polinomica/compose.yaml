@@ -5,7 +5,7 @@
   #  project_directory: ./dify/docker
 
 services:
-  random-forest-ui:
+  alg-ia-ui:
     build:
       context: ./random_forest_ui
     ports:

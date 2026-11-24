@@ -1,0 +1,93 @@
+{
+  "status": "completed",
+  "algorithm": "svr",
+  "algorithm_label": "Support Vector Regression",
+  "winner": "RandomizedSearchCV",
+  "best_parameters": {
+    "C": 429.82762978218597,
+    "cache_size": 200,
+    "coef0": 0.0,
+    "epsilon": 0.8111253665497066,
+    "gamma": 0.004292436152765814,
+    "kernel": "rbf",
+    "max_iter": -1,
+    "shrinking": false,
+    "tol": 3.872118032174584e-05,
+    "verbose": false
+  },
+  "best_cv_rmse": 7.032000209208969,
+  "search_comparison": {
+    "GridSearchCV": {
+      "best_parameters": {
+        "C": 10.0,
+        "cache_size": 200,
+        "coef0": 0.0,
+        "degree": 3,
+        "epsilon": 0.5,
+        "gamma": "scale",
+        "kernel": "linear",
+        "max_iter": -1,
+        "shrinking": true,
+        "tol": 0.0001,
+        "verbose": false
+      },
+      "best_cv_rmse": 7.516735625203175,
+      "candidates_evaluated": 144
+    },
+    "RandomizedSearchCV": {
+      "best_parameters": {
+        "C": 429.82762978218597,
+        "cache_size": 200,
+        "coef0": 0.0,
+        "epsilon": 0.8111253665497066,
+        "gamma": 0.004292436152765814,
+        "kernel": "rbf",
+        "max_iter": -1,
+        "shrinking": false,
+        "tol": 3.872118032174584e-05,
+        "verbose": false
+      },
+      "best_cv_rmse": 7.032000209208969,
+      "candidates_evaluated": 20
+    }
+  },
+  "cv_folds": 5,
+  "n_iter_requested": 20,
+  "n_iter_used": 20,
+  "n_rows": 1000,
+  "n_features": 7,
+  "feature_columns": [
+    "distrito",
+    "tipo_tramite",
+    "superficie_solicitada_m2",
+    "requerimientos_documentacion",
+    "x",
+    "mes_seno",
+    "mes_coseno"
+  ],
+  "metrics": {
+    "r2": 0.9249144223161794,
+    "rmse": 7.082329307924873,
+    "mae": 5.555721857844916,
+    "bias": -0.46162494738643206
+  },
+  "comparison_metrics": {
+    "GridSearchCV": {
+      "rmse": 7.7566092257993455,
+      "r2": 0.9099366454993079
+    },
+    "RandomizedSearchCV": {
+      "rmse": 7.082329307924873,
+      "r2": 0.9249144223161794
+    }
+  },
+  "artifacts": {
+    "report_pdf": "/app/runs/casuistica_svr/casuisticas/svr/resultados/informes/20261124T171139Z_d9a767ba_informe.pdf",
+    "predictions_csv": "/app/runs/casuistica_svr/casuisticas/svr/resultados/csv_salida/20261124T171139Z_d9a767ba_predicciones.csv",
+    "model": "/app/runs/casuistica_svr/casuisticas/svr/resultados/modelos/20261124T171139Z_d9a767ba_svr.joblib",
+    "gridsearch_results_csv": "/app/runs/casuistica_svr/casuisticas/svr/resultados/busquedas/20261124T171139Z_d9a767ba_gridsearch.csv",
+    "randomizedsearch_results_csv": "/app/runs/casuistica_svr/casuisticas/svr/resultados/busquedas/20261124T171139Z_d9a767ba_randomizedsearch.csv",
+    "summary_json": "/app/runs/casuistica_svr/casuisticas/svr/resultados/busquedas/20261124T171139Z_d9a767ba_resumen.json"
+  },
+  "run_id": "20261124T171139Z_d9a767ba"
+}

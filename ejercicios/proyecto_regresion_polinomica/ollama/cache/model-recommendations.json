@@ -16,7 +16,7 @@
       }
     },
     {
-      "model": "kimi-k3:cloud",
+      "model": "kimi-k3.1-pro:cloud",
       "description": "Long-horizon agentic reasoning with multimodal tool use",
       "context_length": 1048576,
       "max_output_tokens": 1048576,
@@ -25,6 +25,7 @@
         "values": [
           false,
           "low",
+          "medium",
           "high",
           "max"
         ],
