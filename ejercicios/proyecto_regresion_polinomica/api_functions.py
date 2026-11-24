@@ -162,6 +162,11 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
                     frame, base / "resultados", run_id,
                     cv=cv, n_iter=n_iter, random_state=random_state,
                 )
+            elif algorithm == "svr":
+                result = train_algorithm_frame_random_forest_regression(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
             else:
                 register_log(run_id,'Error',
                              f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.",

@@ -9,16 +9,31 @@ body:
     - type: text
       key: reference
       value: casuistica_random_forest
+<<<<<<< HEAD
+=======
       disabled: false
+>>>>>>> f113ea1851d065664c63fcfc645f80a5f7fd858d
     - type: text
       key: cv
       value: "5"
       description: Número de pliegues de validación cruzada.
+<<<<<<< HEAD
+=======
       disabled: false
+>>>>>>> f113ea1851d065664c63fcfc645f80a5f7fd858d
     - type: text
       key: n_iter
       value: "20"
       description: Candidatos de RandomizedSearchCV.
+<<<<<<< HEAD
+    - type: text
+      key: random_state
+      value: "42"
+    - type: file
+      key: file
+      src:
+        - ../proyecto_eda_preprocesado_latex/datos/01_referencia_limpia.csv
+=======
       disabled: false
     - type: text
       key: random_state
@@ -29,6 +44,7 @@ body:
       src:
         - /C:/Users/Alumno/Desktop/IFCD0109/fork_profe/ejercicios/proyecto_regresion_polinomica/ejemplos/01_referencia_limpia.csv
       disabled: false
+>>>>>>> f113ea1851d065664c63fcfc645f80a5f7fd858d
 scripts:
   - type: afterResponse
     code: |-

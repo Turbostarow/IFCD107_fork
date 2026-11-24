@@ -11,5 +11,9 @@ variables:
   last_svm_metrics: ""
   last_primitiva_run_id: ""
   last_primitiva_report: ""
+<<<<<<< HEAD
+  last_casuistica_svr: ""
+=======
   last_run_id: ""
   last_casuistica_random_forest: ""
+>>>>>>> f113ea1851d065664c63fcfc645f80a5f7fd858d
