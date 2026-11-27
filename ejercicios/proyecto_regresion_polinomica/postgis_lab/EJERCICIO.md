@@ -10,6 +10,8 @@ El precio simulado es aproximadamente `80000 + 2800*superficie + 12000*habitacio
 
 ## 1. Arrancar los nuevos contenedores
 
+El `compose.yaml` principal incluye `postgis_lab/compose.yaml`. Ejecuta los comandos desde la raíz del proyecto; Docker resuelve el Dockerfile y el SQL con respecto al directorio del Compose incluido. Se requiere Docker Compose 2.20 o posterior por el uso de `include`.
+
 Desde PowerShell:
 
 ```powershell

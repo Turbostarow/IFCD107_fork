@@ -61,7 +61,7 @@ for line in lines[1:]:
         continue
     if line.startswith('## '):
         close_list()
-        body.append(r'\section{'+esc(line[3:])+'}')
+        body.append(r'\section{'+esc(re.sub(r'^\d+\. ', '', line[3:]))+'}')
     elif re.match(r'^\d+\. ',line) or line.startswith('- '):
         want = 'itemize' if line.startswith('- ') else 'enumerate'
         if mode != want:
@@ -145,7 +145,7 @@ Ejecuta las sentencias por separado. La inserción del ejemplo utiliza una refer
 tex = header+'\n'.join(body)+tail
 tex = tex.replace('–','--').replace('−','-').replace('€','EUR').replace('²',r'\textsuperscript{2}')
 (dest / 'main.tex').write_text(tex,encoding='utf-8')
-for name in ['app.py','db.py','modelos.py','verificar.py','requirements.txt','Dockerfile']:
+for name in ['app.py','db.py','modelos.py','verificar.py','requirements.txt','Dockerfile','compose.yaml']:
     shutil.copy2(src / name, dest / 'referencia' / name)
 for name in ['001_init.sql','consultas.sql']:
     shutil.copy2(src / 'sql' / name, dest / 'referencia' / 'sql' / name)
@@ -166,7 +166,8 @@ Desde esa carpeta: docker compose up -d --build postgis-lab postgis-lab-ui
 Interfaz: http://localhost:8502
 
 El ZIP es documental e incluye copias de referencia de la solucion.
-Los servicios se definen en compose.yaml del proyecto original.
+El compose.yaml principal incluye postgis_lab/compose.yaml (Compose 2.20+).
+referencia/compose.yaml conserva la definicion modular del laboratorio.
 No incluye credenciales del entorno ni datos privados.
 ''',encoding='utf-8')
 print(dest)
