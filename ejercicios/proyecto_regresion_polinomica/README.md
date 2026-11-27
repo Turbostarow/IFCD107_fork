@@ -1,5 +1,17 @@
 # API Flask de regresión polinómica
 
+## Ejercicio de PostGIS y regresores lineales
+
+El [enunciado y solución](postgis_lab/EJERCICIO.md) añade una base PostGIS con 2.500 viviendas sintéticas y una interfaz Python para consultas espaciales, inserciones y comparación de Lineal, Ridge, Lasso y Elastic Net.
+
+```powershell
+docker compose up -d --build postgis-lab postgis-lab-ui
+```
+
+Interfaz: [http://localhost:8502](http://localhost:8502). PostGIS: `localhost:5433`. Ambos servicios tienen un volumen y puertos independientes de los servicios existentes.
+
+El Compose principal incluye `postgis_lab/compose.yaml` (Docker Compose 2.20+). Los comandos anteriores se ejecutan desde esta raíz. Los dos servicios también forman parte de un despliegue completo con `docker compose up -d --build`.
+
 Ejemplo ejecutable con rutas Flask en `app.py`, lógica compartida en `api_functions.py` y algoritmos separados en `regression/`. La guía completa y las instrucciones de Postman están en `documentacion/guia_proyecto.tex`.
 
 El CSV incluido tiene 1.000 filas sintéticas para una demostración de gestión de expedientes de terrazas. No son registros, plazos ni resultados reales del Ayuntamiento. En el ajuste, `x` es un índice didáctico de complejidad y `y` son días de tramitación simulados.
