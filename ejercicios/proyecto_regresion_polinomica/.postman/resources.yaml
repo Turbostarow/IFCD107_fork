@@ -2,9 +2,11 @@
 workspace:
   id: 2e8d6e7b-8d47-4108-837e-6f19cfab06ca
 
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
 cloudResources:
   collections:
-    ../postman/collections/API de regresión y análisis de La Primitiva: 4bef2147-38ac-47e9-9ddd-93385aa26b34
+    ../postman/collections/API de regresión y análisis de La Primitiva: a84a80b7-c37d-44d0-be0d-e0af16e97fab
 
 # All resources in the `postman/` folder are automatically registered in Local View.
 # Point to additional files outside the `postman/` folder to register them individually. Example:
