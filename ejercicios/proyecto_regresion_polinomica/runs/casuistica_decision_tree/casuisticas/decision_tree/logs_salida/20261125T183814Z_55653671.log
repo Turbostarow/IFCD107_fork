@@ -1,0 +1,7 @@
+algorithm=decision_tree
+run_id=20261125T183814Z_55653671
+cv=5
+n_iter=20
+winner=RandomizedSearchCV
+best_parameters={"min_samples_leaf": 5, "max_depth": 2}
+metrics={"r2": 0.9886972371055563, "rmse": 1.1913818775735974, "mae": 0.9743995681812274, "bias": -0.022662577895870947}

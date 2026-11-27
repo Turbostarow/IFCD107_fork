@@ -1,0 +1,23 @@
+DATOS SINTÉTICOS CATBOOST - 2500 REGISTROS
+Semilla: 20261125. CSV UTF-8, coma como separador y punto decimal.
+
+catboost_categorico_2500.csv: 2500 filas, 7 predictores y objetivo y.
+CatBoost nativo: especificar cat_features=['zona','tipo_inmueble'].
+catboost_numerico_2500.csv: las mismas 2500 filas, con categorías one-hot; 13 predictores y objetivo y.
+Esta es la versión que debes cargar en el laboratorio actual, que solo selecciona predictores numéricos.
+features_categoricas_2500.csv y features_numericas_2500.csv: las mismas filas, sin y, para predict.
+El orden de las filas coincide en las cuatro versiones. No son conjuntos independientes.
+
+Objetivo y: precio sintético en euros. Predictores: superficie_m2, zona, tipo_inmueble,
+antiguedad_anos, habitaciones, distancia_centro_km y ascensor (0/1).
+Cinco zonas, 500 filas por zona. Los valores son simulados, no tasaciones ni datos de mercado.
+No se incorporan identificadores, precio base ni errores de generación como predictores.
+
+Uso: CatBoost en http://localhost:8501, cargar catboost_numerico_2500.csv,
+seleccionar y como objetivo y todas las demás columnas como predictores.
+Configuración inicial ilustrativa: iterations=200, depth=6, learning_rate=0.1,
+l2_leaf_reg=3 y random_seed=42. El laboratorio divide el CSV en entrenamiento y prueba.
+No mezclar versiones como entrenamiento y prueba; contienen las mismas muestras.
+Un archivo con objetivo puede usarse para evaluar un modelo compatible solo si esas filas
+no se utilizaron para entrenarlo o elegir su configuración. No se entregan como prueba externa
+garantizada de un modelo previo desconocido.

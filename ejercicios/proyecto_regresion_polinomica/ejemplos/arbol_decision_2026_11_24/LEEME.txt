@@ -1,0 +1,31 @@
+DATOS SINTÉTICOS PARA ÁRBOL DE DECISIÓN DE REGRESIÓN
+
+Columnas: x1 y x2 son predictores numéricos en [0,10]; y es el objetivo.
+Regla de generación (igual que la infografía):
+  x1 <= 5 y x2 <= 3: y base = 10
+  x1 <= 5 y x2 >  3: y base = 20
+  x1 >  5 y x2 <= 6: y base = 30
+  x1 >  5 y x2 >  6: y base = 40
+
+arbol_entrenamiento.csv: 960 filas, 240 por región, con ruido normal de desviación 1.2.
+arbol_prueba_externa.csv: 240 filas reservadas, 60 por región, con el mismo tipo de ruido.
+arbol_didactico_sin_ruido.csv: 1200 muestras independientes, 300 por región y sin ruido.
+features_para_predecir.csv: 10 muestras nuevas sin objetivo, incluidas algunas fronteras.
+Todos los datos son sintéticos. No representan mediciones reales.
+Semilla reproducible: 20261124. Filas barajadas; CSV UTF-8, coma y decimal punto.
+
+USO EN EL LABORATORIO
+1. Abre http://localhost:8501 y selecciona Decision Tree.
+2. Carga arbol_entrenamiento.csv, objetivo y, predictores x1 y x2.
+3. Empieza con criterion=squared_error, max_depth=2, min_samples_leaf=5 y random_state=42.
+4. Compara profundidad 1, 2, 5 y None usando las curvas de validación/aprendizaje.
+5. La aplicación divide internamente el CSV cargado. Conserva el archivo de prueba externa
+   separado para una evaluación final adicional; no lo mezcles ni lo uses para elegir parámetros.
+6. Para reconocer las cuatro regiones de la imagen, usa el archivo didáctico sin ruido
+   como una práctica independiente. No añadas la regla ni la región como predictor.
+
+Los umbrales aprendidos se estiman a partir de muestras finitas: pueden ser cercanos a 5,3,6
+sin ser exactamente esos valores. Cerca de una frontera pueden discrepar de la regla conocida.
+Con ruido, el valor de una hoja es una estimación de la media, no necesariamente 10,20,30,40 exactos.
+En features_para_predecir.csv, la regla sin ruido asigna respectivamente:
+10,20,30,40,10,20,30,40,10,40. Son referencias didácticas, no predicciones garantizadas.
