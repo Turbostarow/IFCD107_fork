@@ -17,6 +17,7 @@ services:
       retries: 20
     restart: unless-stopped
 
+
   postgis-lab-ui:
     build: .
     ports:
