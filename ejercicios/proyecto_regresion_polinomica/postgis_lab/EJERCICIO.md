@@ -12,6 +12,8 @@ El precio simulado es aproximadamente `80000 + 2800*superficie + 12000*habitacio
 
 El `compose.yaml` principal incluye `postgis_lab/compose.yaml`. Ejecuta los comandos desde la raíz del proyecto; Docker resuelve el Dockerfile y el SQL con respecto al directorio del Compose incluido. Se requiere Docker Compose 2.20 o posterior por el uso de `include`.
 
+PostGIS escucha internamente en `5433`: la interfaz conecta a `postgis-lab:5433` y el host publica `localhost:5433`. El servicio `postgres` existente conserva `5432`. `PGPORT=5433` está configurado también en PostGIS para que los comandos `psql` del ejercicio utilicen ese puerto sin añadir opciones.
+
 Desde PowerShell:
 
 ```powershell
