@@ -1,0 +1,41 @@
+services:
+  postgis-lab:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: georegresion
+      POSTGRES_USER: alumno
+      POSTGRES_PASSWORD: ${POSTGIS_LAB_PASSWORD:-postgis_lab_local}
+    ports:
+      - "127.0.0.1:${POSTGIS_LAB_PORT:-5433}:5432"
+    volumes:
+      - postgis_lab_data:/var/lib/postgresql/data
+      - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alumno -d georegresion"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+
+  postgis-lab-ui:
+    build: .
+    ports:
+      - "127.0.0.1:${POSTGIS_LAB_UI_PORT:-8502}:8501"
+    environment:
+      PGHOST: postgis-lab
+      PGDATABASE: georegresion
+      PGUSER: alumno
+      PGPASSWORD: ${POSTGIS_LAB_PASSWORD:-postgis_lab_local}
+    depends_on:
+      postgis-lab:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgis_lab_data:
