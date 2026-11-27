@@ -1,22 +1,23 @@
 services:
   postgis-lab:
     image: postgis/postgis:16-3.5
+    command: ["postgres", "-p", "5433"]
     environment:
       POSTGRES_DB: georegresion
       POSTGRES_USER: alumno
       POSTGRES_PASSWORD: ${POSTGIS_LAB_PASSWORD:-postgis_lab_local}
+      PGPORT: "5433"
     ports:
-      - "127.0.0.1:${POSTGIS_LAB_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGIS_LAB_PORT:-5433}:5433"
     volumes:
       - postgis_lab_data:/var/lib/postgresql/data
       - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alumno -d georegresion"]
+      test: ["CMD-SHELL", "pg_isready -p 5433 -U alumno -d georegresion"]
       interval: 5s
       timeout: 5s
       retries: 20
     restart: unless-stopped
-
 
   postgis-lab-ui:
     build: .
@@ -24,6 +25,7 @@ services:
       - "127.0.0.1:${POSTGIS_LAB_UI_PORT:-8502}:8501"
     environment:
       PGHOST: postgis-lab
+      PGPORT: "5433"
       PGDATABASE: georegresion
       PGUSER: alumno
       PGPASSWORD: ${POSTGIS_LAB_PASSWORD:-postgis_lab_local}

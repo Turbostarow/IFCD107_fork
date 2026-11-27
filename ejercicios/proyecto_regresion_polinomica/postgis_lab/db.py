@@ -6,7 +6,7 @@ from psycopg.rows import dict_row
 
 def connect():
     return psycopg.connect(host=os.getenv('PGHOST', 'postgis-lab'),
-                          port=os.getenv('PGPORT', '5432'),
+                          port=os.getenv('PGPORT', '5433'),
                           dbname=os.getenv('PGDATABASE', 'georegresion'),
                           user=os.getenv('PGUSER', 'alumno'),
                           password=os.getenv('PGPASSWORD', 'postgis_lab_local'),

@@ -113,7 +113,7 @@ Fecha & 27 de noviembre de 2026
 \section{Enunciado general}
 Desarrolla una aplicación que permita almacenar viviendas con ubicación geográfica, insertar observaciones y consultar por proximidad. Utiliza las filas obtenidas para estimar precios mediante regresores lineales y explica sus errores de predicción.
 
-El trabajo se organiza en tres componentes: un contenedor PostGIS que conserva los datos, un contenedor Python que consulta y entrena los modelos y un navegador que presenta la interfaz. La comunicación entre contenedores utiliza el nombre del servicio y el puerto interno 5432. Desde Windows se utiliza localhost:5433 para la base y localhost:8502 para la interfaz.
+El trabajo se organiza en tres componentes: un contenedor PostGIS que conserva los datos, un contenedor Python que consulta y entrena los modelos y un navegador que presenta la interfaz. La comunicación entre contenedores utiliza postgis-lab:5433. Desde Windows se utiliza localhost:5433 para la base y localhost:8502 para la interfaz. El PostgreSQL del proyecto mantiene su puerto 5432.
 
 \subsection{Resultados de aprendizaje}
 \begin{itemize}
