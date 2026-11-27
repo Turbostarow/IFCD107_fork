@@ -1,3 +1,6 @@
+include:
+  - path: ./postgis_lab/compose.yaml
+
 #include:
   # Dify mantiene su Compose oficial en su propio repositorio y directorio.
   # Consulte README.md para clonar el repositorio y crear su archivo .env.
@@ -5,7 +8,7 @@
   #  project_directory: ./dify/docker
 
 services:
-  alg-ia-ui:
+  random-forest-ui:
     build:
       context: ./random_forest_ui
     ports:

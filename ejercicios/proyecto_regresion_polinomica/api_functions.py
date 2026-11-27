@@ -38,6 +38,7 @@ from regression.train_regresion_lineal_multiple_ejercicio_casuisticas import tra
 from regression.train_regresion_polinomial_ejercicio_casuisticas import train_algorithm_frame_polynomial_regression
 from regression.train_regresion_cuantilica_ejercicio_casuisticas import train_algorithm_frame_quantile_regression
 from regression.train_random_forest_ejercicio_casuisticas import train_algorithm_frame_random_forest_regression
+from regression.train_arbol_decision_ejercicio_casuisticas import train_algorithm_frame_decision_tree
 from regression.results_db import mark_run_failed, register_run,register_log
 
 
@@ -167,6 +168,12 @@ def run_regression_casuistica(output_root, reference, raw_csv, algorithm,
                     frame, base / "resultados", run_id,
                     cv=cv, n_iter=n_iter, random_state=random_state,
                 )
+            elif algorithm == "decision_tree":
+                result = train_algorithm_frame_decision_tree(
+                    frame, base / "resultados", run_id,
+                    cv=cv, n_iter=n_iter, random_state=random_state,
+                )
+                
             else:
                 register_log(run_id,'Error',
                              f"Algoritmo no reconocido(Preguntar por Danny): {algorithm}.",
